@@ -1,14 +1,10 @@
 package gameServer;
 
-import java.io.IOException;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.Semaphore;
 
-import baralho.Carta;
 import baralho.CartaEspecial;
-import baralho.CartaNormal;
-import baralho.TipoEspecial;
 import players.Player;
 
 //Classe responsável por Tratar as mensagem recebida pelos sockets do ClientHandler
@@ -17,10 +13,10 @@ public class GameListener implements Runnable {
     public static int numPlayers;
     private boolean jogoIniciado;
     private int totalProntos;
-    private GameOnGoing gameOnGoing;
+    private final GameOnGoing gameOnGoing;
     public static LinkedList<Player> players;
 
-    public GameListener() throws IOException {
+    public GameListener() {
         gameOnGoing = new GameOnGoing();
         players = new LinkedList<>();
         numPlayers = 0;
@@ -85,7 +81,7 @@ public class GameListener implements Runnable {
 
                                     System.out.println(player.getNome());
                                     System.out.println("player ENTROU! total de palyers: " + numPlayers);
-                                    ClientHandler.clientHandlers.get(0).toAllClient("01\t" + numPlayers + "\n");
+                                    ClientHandler.clientHandlers.getFirst().toAllClient("01\t" + numPlayers + "\n");
                                 }
 
                             }
@@ -101,7 +97,7 @@ public class GameListener implements Runnable {
                                 }
                             }
                             numPlayers--;
-                            if (ClientHandler.clientHandlers != null)
+                            if (ClientHandler.clientHandlers != null && ClientHandler.clientHandlers.getFirst() != null)
                                 if (!ClientHandler.clientHandlers.isEmpty())
                                     ClientHandler.clientHandlers.getFirst().toAllClient("01\t" + numPlayers + "\n");
                             System.out.println("player SAIU! total de players: " + numPlayers);
