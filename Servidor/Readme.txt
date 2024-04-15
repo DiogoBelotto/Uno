@@ -13,10 +13,10 @@ mostrar qual oponente esta na vez
 mostrar porque a jogada inválida, por exemplo: "Carta de cor diferente", "Mensagem digitada inválida"
 ainda nao esta funcionando as rodadas
 escolher carta também não
-possível memory allocation loop no Client-Game-run(), print de lendo msgs de entrada!
+possível memory leak no Client-Game-run(), print de lendo msgs de entrada!
 
 
-
+REDES (COMUNICAÇÃO ENTRE CLIENT E SERVIDOR)
 IDENTIFICADOR PARA SPLIT DA STRING "\t"
 
 PARA CLIENTE:
