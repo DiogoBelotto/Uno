@@ -11,6 +11,9 @@ jogador poder jogar um +2 sobre o +2 jogado na mesa
 jogador poder jogar um +4 sobre o +4 jogado na mesa
 mostrar qual oponente esta na vez
 mostrar porque a jogada inválida, por exemplo: "Carta de cor diferente", "Mensagem digitada inválida"
+ainda nao esta funcionando as rodadas
+escolher carta também não
+possível memory allocation loop no Client-Game-run(), print de lendo msgs de entrada!
 
 
 
