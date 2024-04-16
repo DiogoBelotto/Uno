@@ -164,7 +164,7 @@ public class GameListener implements Runnable {
                                 System.out.println("Sempahore Exception!");
                             }
                             //Envia para os oponentes a quantidade de cartas atualizada
-                            enviaQuantCartas(clientMessage);
+                            enviaQuantCartas(clientMessage, false);
                             gameTemNovJogada = true;
                             Server.temNovaJogadaSemaphore.release();
                             break;
@@ -177,7 +177,7 @@ public class GameListener implements Runnable {
                                     ClientHandler.clientHandlers.get(i).getPlayer().getDeck().remove(Integer.parseInt(clientMessage[2]));
                                 }
                             }
-                            enviaQuantCartas(clientMessage);
+                            enviaQuantCartas(clientMessage, false);
                             try {
                                 Server.temNovaJogadaSemaphore.acquire();
                             } catch (InterruptedException e) {
@@ -190,19 +190,38 @@ public class GameListener implements Runnable {
                         case 6:
                             for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
                                 if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
-                                    if (clientMessage.length == 4) {
-                                        gameOnGoing.setCartaNaMesa(ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2])));
-                                        gameOnGoing.getCartaNaMesa().setCor(CartaEspecial.getCor(clientMessage[3]));
-                                        gameOnGoing.enviaCartaNaMesa(i);
-                                        ClientHandler.clientHandlers.get(i).getPlayer().getDeck().remove(Integer.parseInt(clientMessage[2]));
-                                    } else {
-                                        gameOnGoing.setCartaNaMesa(ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2])));
-                                        gameOnGoing.enviaCartaNaMesa(i);
-                                        ClientHandler.clientHandlers.get(i).getPlayer().getDeck().remove(Integer.parseInt(clientMessage[2]));
+                                    //Realiza a ação da carta especial
+                                    if (("IN").equals(((CartaEspecial) ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial())) {
+                                        gameOnGoing.setOrdemParaDireita(!gameOnGoing.isOrdemParaDireita());
                                     }
+                                    if (((CartaEspecial) ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial().equals("+2")) {
+                                        gameOnGoing.setPosicaoAtual(gameOnGoing.posicaoJogadorAtual());
+                                        gameOnGoing.pescaCarta(gameOnGoing.posicaoJogadorAtual());
+                                        gameOnGoing.pescaCarta(gameOnGoing.posicaoJogadorAtual());
+                                    }
+                                    if (((CartaEspecial) ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial().equals("+4")) {
+                                        gameOnGoing.setPosicaoAtual(gameOnGoing.posicaoJogadorAtual());
+                                        gameOnGoing.pescaCarta(gameOnGoing.posicaoJogadorAtual());
+                                        gameOnGoing.pescaCarta(gameOnGoing.posicaoJogadorAtual());
+                                        gameOnGoing.pescaCarta(gameOnGoing.posicaoJogadorAtual());
+                                        gameOnGoing.pescaCarta(gameOnGoing.posicaoJogadorAtual());
+                                    }
+                                    if (((CartaEspecial) ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial().equals("PJ")) {
+                                        gameOnGoing.setPosicaoAtual(gameOnGoing.posicaoJogadorAtual());
+                                    }
+                                    //Seta carta na Mesa, e caso for uma carta de escolher cor altera sua cor também
+                                    if (clientMessage.length == 4) {
+                                        ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2])).setCor(CartaEspecial.getCor(clientMessage[3]));
+                                    }
+                                    gameOnGoing.setCartaNaMesa(ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2])));
+                                    gameOnGoing.enviaCartaNaMesa(i);
+                                    ClientHandler.clientHandlers.get(i).getPlayer().getDeck().remove(Integer.parseInt(clientMessage[2]));
+
+                                    //Atualiza quantidade de cartas dos oponenetes
+                                    enviaQuantCartas(clientMessage, true);
+
                                 }
                             }
-                            enviaQuantCartas(clientMessage);
                             try {
                                 Server.temNovaJogadaSemaphore.acquire();
                             } catch (InterruptedException e) {
@@ -220,11 +239,17 @@ public class GameListener implements Runnable {
         }
     }
 
-    private void enviaQuantCartas(String[] clientMessage) {
+    private void enviaQuantCartas(String[] clientMessage, boolean siProprio) {
+        int id = ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])).getPlayer().getId();
+        int quantCartas = ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])).getPlayer().getDeck().size();
+
+        if(siProprio){
+            ClientHandler clientHandler = (ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])));
+            clientHandler.toAClient("10\t" + id + "\t" + quantCartas + "\n", Integer.parseInt(clientMessage[0]));
+            return;
+        }
         for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
             if (!ClientHandler.clientHandlers.get(i).equals(ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])))) {
-                int id = ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])).getPlayer().getId();
-                int quantCartas = ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])).getPlayer().getDeck().size();
                 ClientHandler.clientHandlers.get(i).toAClient("10\t" + id + "\t" + quantCartas + "\n", i);
             }
         }

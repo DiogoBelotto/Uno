@@ -182,6 +182,7 @@ public class Game implements Runnable {
                     //Atualização na quantidade de cartas
                     case 10:
                         try {
+                            Screen.novaRodadaSemaphore.acquire();
                             Screen.geralSemaphore.acquire();
                         } catch (InterruptedException e) {
                             System.out.println("Semaphore Exception");
@@ -196,6 +197,9 @@ public class Game implements Runnable {
                             }
                         }
 
+                        novaRodada = true;
+
+                        Screen.novaRodadaSemaphore.release();
                         Screen.geralSemaphore.release();
                         break;
 

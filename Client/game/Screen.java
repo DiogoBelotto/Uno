@@ -112,30 +112,30 @@ public class Screen {
             // Layout da impressão deve mudar de acordo com a quantidade de players
             switch (game.getNumPlayers()) {
                 case 2:
-                    System.out.print("Dois players\n");
-                    System.out.print("[IN]Inverte Ordem, [PJ]Pula Jogador, [MD]Muda Cor\n");
+                    System.out.print("\u001B[32m" + "Dois players\n");
+                    System.out.print("[IN]Inverte Ordem, [PJ]Pula Jogador, [MC]Muda Cor\n");
                     System.out.print("\r------" + game.getOpontentes().getFirst().getNome() + " ["
                             + game.getOpontentes().getFirst().getQuantCartas() + "] cartas");
                     System.out.print("\n\n---------" + game.getCartaNaMesa());
-                    System.out.print("\n\n------" + game.getClient().getPlayer().getDeck());
+                    System.out.print("\n\n------" + game.getClient().getPlayer().getDeck() + "\u001B[0m");
                     isSuaRodada();
                     break;
 
                 case 3:
-                    System.out.print("[IN]Inverte Ordem, [PJ]Pula Jogador, [MD]Muda Cor\n");
-                    System.out.print("tres players\n");
+                    System.out.print("Tres players\n");
+                    System.out.print("\u001B[32m" + "[IN]Inverte Ordem, [PJ]Pula Jogador, [MC]Muda Cor\n");
                     System.out.print("\033[H\033[2J" + "\r------" + "\u001B[32m" + game.getOpontentes().getFirst().getNome() + " ["
                             + game.getOpontentes().getFirst().getQuantCartas() + "] cartas" + "\u001B[0m");
                     System.out.print("\n------" + game.getOpontentes().get(1).getNome() + " ["
                             + game.getOpontentes().getFirst().getQuantCartas() + "] cartas");
                     System.out.print("\n\n---------" + game.getCartaNaMesa());
-                    System.out.print("\n\n------" + game.getClient().getPlayer().getDeck());
+                    System.out.print("\n\n------" + game.getClient().getPlayer().getDeck() + "\u001B[0m");
                     isSuaRodada();
                     break;
 
                 case 4:
-                    System.out.print("quatro players\n");
-                    System.out.print("[IN]Inverte Ordem, [PJ]Pula Jogador, [MD]Muda Cor\n");
+                    System.out.print("\u001B[32m" + "Quatro players\n");
+                    System.out.print("[IN]Inverte Ordem, [PJ]Pula Jogador, [MC]Muda Cor\n");
                     System.out.print("\033[H\033[2J" + "\r------" + game.getOpontentes().getFirst().getNome() + " ["
                             + game.getOpontentes().getFirst().getQuantCartas() + "] cartas");
                     System.out.print("\n------" + game.getOpontentes().get(1).getNome() + " ["
@@ -143,7 +143,7 @@ public class Screen {
                     System.out.print("\n------" + game.getOpontentes().get(2).getNome() + " ["
                             + game.getOpontentes().getFirst().getQuantCartas() + "] cartas");
                     System.out.print("\n\n---------" + game.getCartaNaMesa());
-                    System.out.print("\n\n------" + game.getClient().getPlayer().getDeck());
+                    System.out.print("\n\n------" + game.getClient().getPlayer().getDeck() + "\u001B[0m");
                     isSuaRodada();
                     break;
 

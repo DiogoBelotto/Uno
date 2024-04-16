@@ -10,6 +10,15 @@ public class GameOnGoing implements Runnable {
     private Baralho baralho;
     private Carta cartaNaMesa;
     private int posicaoAtual;
+
+    public boolean isOrdemParaDireita() {
+        return isOrdemParaDireita;
+    }
+
+    public void setOrdemParaDireita(boolean ordemParaDireita) {
+        isOrdemParaDireita = ordemParaDireita;
+    }
+
     private boolean isOrdemParaDireita;
 
     public GameOnGoing() {
@@ -179,5 +188,13 @@ public class GameOnGoing implements Runnable {
         cor = carta.getCor();
         ClientHandler.clientHandlers.get(i).toAClient("04\t" + valor + "\t" + cor + "\n", i);
         ClientHandler.clientHandlers.get(i).getPlayer().addCarta(carta);
+    }
+
+    public int getPosicaoAtual() {
+        return posicaoAtual;
+    }
+
+    public void setPosicaoAtual(int posicaoAtual) {
+        this.posicaoAtual = posicaoAtual;
     }
 }

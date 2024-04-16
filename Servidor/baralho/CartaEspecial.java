@@ -33,10 +33,12 @@ public class CartaEspecial extends Carta {
 
     public static Cor getCor(String cor) {
         return switch (cor) {
-            case "azul" -> Cor.AZUL;
-            case "verde" -> Cor.VERDE;
-            case "AMARELO" -> Cor.AMARELO;
-            default -> Cor.VERMELHO;
+            case "azul", "AZUL" -> Cor.AZUL;
+            case "verde", "VERDE" -> Cor.VERDE;
+            case "amarelo", "AMARELO" -> Cor.AMARELO;
+            case "vermelho", "VERMELHO" -> Cor.VERMELHO;
+            default -> Cor.SEM_COR;
         };
     }
+
 }
