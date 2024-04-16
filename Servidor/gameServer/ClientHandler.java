@@ -8,7 +8,6 @@ import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Queue;
-import java.util.concurrent.Semaphore;
 
 import players.Player;
 
@@ -58,16 +57,15 @@ public class ClientHandler implements Runnable {
                 if (!temNovaMensagem) {
                     // Utilizando um semaphore para manipular as variaveis estaticas usadas para
                     // passar as mensagem para classes externa
-                    Semaphore semaphore = new Semaphore(1);
-                    semaphore.acquire();
-                    mensagem = bufferedReader.readLine();
-                    semaphore.release();
 
+                    mensagem = bufferedReader.readLine();
+
+                    Server.mensagensSemaphore.acquire();
                     //Adiciona a mensagem a variavel junto ao id do clientHandler em questão para identificação externa
                     novasMensagens.add(this.id + "\t" + mensagem);
                     //DebugMSG - System.out.println(novaMensagem);
                     temNovaMensagem = true;
-
+                    Server.mensagensSemaphore.release();
                 }
             } catch (IOException e) {
                 closeTudo(bufferedReader, bufferedWriter, socket);
@@ -106,16 +104,15 @@ public class ClientHandler implements Runnable {
     public void removeClientHandler() {
         //remove o client da lista caso ele saia ou seja removido por outro motivo
         clientHandlers.remove(this);
-        Semaphore semaphore = new Semaphore(1);
         try {
-            semaphore.acquire();
+            Server.mensagensSemaphore.acquire();
         } catch (InterruptedException e) {
             System.out.println("Exeception semphore");
         }
         //Adiciona nova mensagem para o GameListener tratar, com o id do clientHandler e Identificador 2
         novasMensagens.add(this.id + "\t2");
         temNovaMensagem = true;
-        semaphore.release();
+        Server.mensagensSemaphore.release();
     }
 
     public void closeTudo(BufferedReader bufferedReader, BufferedWriter bufferedWriter, Socket socket) {
@@ -152,49 +149,12 @@ public class ClientHandler implements Runnable {
         return clientHandlers;
     }
 
-    public static boolean isTemNovaMensagem() {
-        return temNovaMensagem;
-    }
-
-    public Socket getSocket() {
-        return socket;
-    }
-
-    public BufferedReader getBufferedReader() {
-        return bufferedReader;
-    }
-
     public BufferedWriter getBufferedWriter() {
         return bufferedWriter;
-    }
-
-    public static void setClientHandlers(ArrayList<ClientHandler> clientHandlers) {
-        ClientHandler.clientHandlers = clientHandlers;
-    }
-
-    public static Queue<String> getNovasMensagens() {
-        return novasMensagens;
     }
 
     public static void setNovasMensagens(Queue<String> novasMensagens) {
         ClientHandler.novasMensagens = novasMensagens;
     }
-
-    public void setSocket(Socket socket) {
-        this.socket = socket;
-    }
-
-    public void setBufferedReader(BufferedReader bufferedReader) {
-        this.bufferedReader = bufferedReader;
-    }
-
-    public void setBufferedWriter(BufferedWriter bufferedWriter) {
-        this.bufferedWriter = bufferedWriter;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
 
 }

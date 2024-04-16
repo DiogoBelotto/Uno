@@ -13,10 +13,22 @@ public class Screen {
     private final Game game;
     public static int tipoDePrint;
     private final Scanner scanner;
-    Semaphore semaphore;
+    public static Semaphore mensagensSemaphore;
+    public static Semaphore tipoDePrintSemaphore;
+    public static Semaphore podeComecarSemaphore;
+    public static Semaphore rodadaAtualSemaphore;
+    public static Semaphore novaRodadaSemaphore;
+    public static Semaphore numPlayersSemaphore;
+    public static Semaphore geralSemaphore;
 
     public Screen() throws IOException {
-        semaphore = new Semaphore(1);
+        mensagensSemaphore = new Semaphore(1);
+        tipoDePrintSemaphore = new Semaphore(1);
+        podeComecarSemaphore = new Semaphore(1);
+        rodadaAtualSemaphore = new Semaphore(1);
+        novaRodadaSemaphore = new Semaphore(1);
+        numPlayersSemaphore = new Semaphore(1);
+        geralSemaphore = new Semaphore(1);
         tipoDePrint = 0;
         scanner = new Scanner(System.in);
         game = new Game();
@@ -31,12 +43,12 @@ public class Screen {
         // loop que printa a tela do jogo
         do {
             try {
-                semaphore.acquire();
+                tipoDePrintSemaphore.acquire();
             } catch (InterruptedException e) {
                 System.out.println("Semaphore Exception");
             }
             boolean var = (tipoDePrint != 0);
-            semaphore.release();
+            tipoDePrintSemaphore.release();
 
             // Se o tipoDePrint for diferente de 0 começa a printar o jogo
             if (var) {
@@ -49,9 +61,11 @@ public class Screen {
                     // Identificador 2: Partida Lotada, numero max de jogadores
                     case 2:
                         System.out.println("Número máximo de jogadores ja entraram!");
-                        Thread.interrupted();
+                        //Thread.interrupted();
                         break;
                     case 3:
+                        System.out.println("Caso saida loop tipo screen!");
+                        return;
 
                 }
             }
@@ -68,16 +82,16 @@ public class Screen {
         // Loop para aguardar o jogo iniciar
         while (true) {
             try {
-                semaphore.acquire();
+                podeComecarSemaphore.acquire();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
 
             if (game.isPodeComecar()) {
-                semaphore.release();
+                podeComecarSemaphore.release();
                 break;
             }
-            semaphore.release();
+            podeComecarSemaphore.release();
 
             if (!game.getClient().getPlayer().isPronto()) {
                 System.out.print("Aguardando players ficarem prontos! Se você está pronto digite 'S' ");
@@ -96,11 +110,10 @@ public class Screen {
         while (!game.getOpontentes().isEmpty()) {
             // Caso os players tenham desconectado, encerra o Jogo
             // Layout da impressão deve mudar de acordo com a quantidade de players
-            System.out.print(game.getClient().getPlayer().getNome());
             switch (game.getNumPlayers()) {
                 case 2:
                     System.out.print("Dois players\n");
-                    System.out.print("[IN]Invertede Ordem, [PJ]Pula Jogador, [MD]Muda Cor\n");
+                    System.out.print("[IN]Inverte Ordem, [PJ]Pula Jogador, [MD]Muda Cor\n");
                     System.out.print("\r------" + game.getOpontentes().getFirst().getNome() + " ["
                             + game.getOpontentes().getFirst().getQuantCartas() + "] cartas");
                     System.out.print("\n\n---------" + game.getCartaNaMesa());
@@ -109,7 +122,7 @@ public class Screen {
                     break;
 
                 case 3:
-                    System.out.print("[IN]Invertede Ordem, [PJ]Pula Jogador, [MD]Muda Cor\n");
+                    System.out.print("[IN]Inverte Ordem, [PJ]Pula Jogador, [MD]Muda Cor\n");
                     System.out.print("tres players\n");
                     System.out.print("\033[H\033[2J" + "\r------" + "\u001B[32m" + game.getOpontentes().getFirst().getNome() + " ["
                             + game.getOpontentes().getFirst().getQuantCartas() + "] cartas" + "\u001B[0m");
@@ -122,7 +135,7 @@ public class Screen {
 
                 case 4:
                     System.out.print("quatro players\n");
-                    System.out.print("[IN]Invertede Ordem, [PJ]Pula Jogador, [MD]Muda Cor\n");
+                    System.out.print("[IN]Inverte Ordem, [PJ]Pula Jogador, [MD]Muda Cor\n");
                     System.out.print("\033[H\033[2J" + "\r------" + game.getOpontentes().getFirst().getNome() + " ["
                             + game.getOpontentes().getFirst().getQuantCartas() + "] cartas");
                     System.out.print("\n------" + game.getOpontentes().get(1).getNome() + " ["
@@ -137,37 +150,38 @@ public class Screen {
             }
 
             try {
-                semaphore.acquire();
+                rodadaAtualSemaphore.acquire();
+                novaRodadaSemaphore.acquire();
             } catch (InterruptedException e) {
                 System.out.println("semaphore exeption");
             }
             if (game.getRodadaAtual() == 1 || game.getRodadaAtual() == 0) {
                 game.setNovaRodada(false);
             }
-            semaphore.release();
+            rodadaAtualSemaphore.release();
+            novaRodadaSemaphore.release();
 
             boolean novaRodadada = false;
-            if(!game.isSuaRodada())
+            if (!game.isSuaRodada())
                 System.out.println("\nAguardando a rodada de outro Jogador! ");
             //Verifica se é uma nova rodada, caso não fica no loop esperando alguma atualização de rodada
             do {
                 try {
-                    semaphore.acquire();
+                    novaRodadaSemaphore.acquire();
                     novaRodadada = game.isNovaRodada();
-                    Thread.sleep(100);
                 } catch (InterruptedException e) {
                     System.out.println("sleep/semaphore exeption");
                 }
-                semaphore.release();
+                novaRodadaSemaphore.release();
             } while (!novaRodadada);
 
             try {
-                semaphore.acquire();
+                novaRodadaSemaphore.acquire();
                 game.setNovaRodada(false);
             } catch (InterruptedException e) {
                 System.out.println("semaphore exeption");
             }
-            semaphore.release();
+            novaRodadaSemaphore.release();
 
         }
         System.out.println("=======Jogo terminou!=======");
@@ -176,7 +190,7 @@ public class Screen {
 
     private void isSuaRodada() {
         if (game.isSuaRodada()) {
-            boolean isJogadaValida = true;
+            boolean isJogadaValida;
             do {
 
                 System.out.print("\u001B[32m" + "\n--Seu Turno--" + "\u001B[0m");
@@ -236,7 +250,7 @@ public class Screen {
             return "err01jogada-invalida01\t";
         }
         //jogar cartas
-        if (jogada > 0 && jogada  < (game.getClient().getPlayer().getDeck().size())+1) {
+        if (jogada > 0 && jogada < (game.getClient().getPlayer().getDeck().size()) + 1) {
             Carta carta = game.getClient().getPlayer().getDeck().get(jogada - 1);
             if (carta instanceof CartaEspecial) {
                 //Caso for um +4 ou Muda Cor

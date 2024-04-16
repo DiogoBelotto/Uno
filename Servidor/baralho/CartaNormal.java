@@ -13,10 +13,6 @@ public class CartaNormal extends Carta {
         return numero;
     }
 
-    public void setNumero(int numero) {
-        this.numero = numero;
-    }
-
     @Override
     public String toString() {
         return super.getStringCor() + numero + "\u001B[0m";

@@ -5,8 +5,8 @@ import java.util.LinkedList;
 import baralho.Carta;
 
 public class Player {
-    private LinkedList<Carta> deck;
-    private String nome;
+    private final LinkedList<Carta> deck;
+    private final String nome;
     private boolean pronto;
     private int id;
 
@@ -20,10 +20,6 @@ public class Player {
         deck.add(carta);
     }
 
-    public boolean removeCarta(Carta carta){
-        return deck.remove(carta);
-    }
-
     @Override
     public String toString() {
         return deck.toString();
@@ -31,10 +27,6 @@ public class Player {
 
     public String getNome() {
         return nome;
-    }
-
-    public void setNome(String nome) {
-        this.nome = nome;
     }
 
     public LinkedList<Carta> getDeck() {

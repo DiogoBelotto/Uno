@@ -2,7 +2,6 @@ package gameServer;
 
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.concurrent.Semaphore;
 
 import baralho.CartaEspecial;
 import players.Player;
@@ -28,7 +27,6 @@ public class GameListener implements Runnable {
     @Override
     public void run() {
         // Semaphore para critic sessions
-        Semaphore semaphore = new Semaphore(1);
 
         // Loop que verifica a existencia de mensagem escitas pelo ClienteHandler na
         // variavel estatica novaMensagem e temNovaMensage
@@ -46,7 +44,7 @@ public class GameListener implements Runnable {
             // Requesita o semaphore antes de entrar no switch e finaliza ao seu final
             // visto que acessam e modificam muitas vezes as variaveis em seção critica
             try {
-                semaphore.acquire();
+                Server.mensagensSemaphore.acquire();
             } catch (InterruptedException e) {
                 System.out.println("Sempahore Exception!");
             }
@@ -79,11 +77,22 @@ public class GameListener implements Runnable {
                                     player = ClientHandler.clientHandlers.get(i).getPlayer();
                                     player.setId(ClientHandler.clientHandlers.get(i).getId());
 
+                                    try {
+                                        Server.playersSemaphore.acquire();
+                                        Server.numPlayersSemaphore.acquire();
+                                    } catch (InterruptedException e) {
+                                        System.out.println("Sempahore Exception!");
+                                    }
+
                                     players.add(player);
+
+                                    Server.playersSemaphore.release();
 
                                     System.out.println(player.getNome());
                                     System.out.println("player ENTROU! total de palyers: " + numPlayers);
                                     ClientHandler.clientHandlers.getFirst().toAllClient("01\t" + numPlayers + "\n");
+
+                                    Server.numPlayersSemaphore.release();
                                 }
 
                             }
@@ -91,6 +100,13 @@ public class GameListener implements Runnable {
 
                         // Identificador 2: Saída de Jogador
                         case 2:
+                            try {
+                                Server.numPlayersSemaphore.acquire();
+                                Server.playersSemaphore.acquire();
+                            } catch (InterruptedException e) {
+                                System.out.println("Sempahore Exception!");
+                            }
+
                             for (int i = 0; i < players.size(); i++) {
                                 if (players.get(i).getId() == Integer.parseInt(clientMessage[0])) {
                                     if (players.get(i).isPronto())
@@ -98,10 +114,13 @@ public class GameListener implements Runnable {
                                     players.remove(i);
                                 }
                             }
+                            Server.playersSemaphore.release();
                             numPlayers--;
-                            if (ClientHandler.clientHandlers != null && ClientHandler.clientHandlers.size() != 0)
+                            if (ClientHandler.clientHandlers != null && !ClientHandler.clientHandlers.isEmpty())
                                 ClientHandler.clientHandlers.getFirst().toAllClient("01\t" + numPlayers + "\n");
                             System.out.println("player SAIU! total de players: " + numPlayers);
+
+                            Server.numPlayersSemaphore.release();
                             break;
 
                         // Identificador 3: Jogador deu pronto
@@ -110,6 +129,11 @@ public class GameListener implements Runnable {
                                 if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
                                     boolean isPronto = clientMessage[2].equals("true");
                                     if (isPronto) {
+                                        try {
+                                            Server.numPlayersSemaphore.acquire();
+                                        } catch (InterruptedException e) {
+                                            System.out.println("Sempahore Exception!");
+                                        }
                                         ClientHandler.clientHandlers.get(i).getPlayer().setPronto(true);
                                         totalProntos++;
                                         System.out.println(
@@ -118,6 +142,7 @@ public class GameListener implements Runnable {
                                                         + " players darem pronto para o jogo iniciar!");
                                         System.out.println(
                                                 (numPlayers == 1) ? "Mas nao é possivel jogar sozinho!" : "\r");
+                                        Server.numPlayersSemaphore.release();
                                     }
 
                                 }
@@ -132,9 +157,16 @@ public class GameListener implements Runnable {
                                 }
 
                             }
+
+                            try {
+                                Server.temNovaJogadaSemaphore.acquire();
+                            } catch (InterruptedException e) {
+                                System.out.println("Sempahore Exception!");
+                            }
                             //Envia para os oponentes a quantidade de cartas atualizada
                             enviaQuantCartas(clientMessage);
                             gameTemNovJogada = true;
+                            Server.temNovaJogadaSemaphore.release();
                             break;
                         //Jogar carta  normal
                         case 5:
@@ -146,7 +178,13 @@ public class GameListener implements Runnable {
                                 }
                             }
                             enviaQuantCartas(clientMessage);
+                            try {
+                                Server.temNovaJogadaSemaphore.acquire();
+                            } catch (InterruptedException e) {
+                                System.out.println("Sempahore Exception!");
+                            }
                             gameTemNovJogada = true;
+                            Server.temNovaJogadaSemaphore.release();
                             break;
                         //Jogar carta  especial
                         case 6:
@@ -165,14 +203,20 @@ public class GameListener implements Runnable {
                                 }
                             }
                             enviaQuantCartas(clientMessage);
+                            try {
+                                Server.temNovaJogadaSemaphore.acquire();
+                            } catch (InterruptedException e) {
+                                System.out.println("Sempahore Exception!");
+                            }
                             gameTemNovJogada = true;
+                            Server.temNovaJogadaSemaphore.release();
                             break;
                     }
                 }
 
             }
             // Libera o semaphore após acessar as condições de corrida
-            semaphore.release();
+            Server.mensagensSemaphore.release();
         }
     }
 

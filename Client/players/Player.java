@@ -15,11 +15,11 @@ public class Player {
         pronto = false;
     }
 
-    public void addCarta(Carta carta){
+    public void addCarta(Carta carta) {
         deck.add(carta);
     }
 
-    public boolean removeCarta(Carta carta){
+    public boolean removeCarta(Carta carta) {
         return deck.remove(carta);
     }
 

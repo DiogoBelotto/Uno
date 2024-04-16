@@ -5,7 +5,6 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.concurrent.Semaphore;
 
 import baralho.Carta;
 import baralho.CartaEspecial;
@@ -16,19 +15,19 @@ public class Game implements Runnable {
     private final Client client;
     private boolean podeComecar;
     private int numPlayers;
-    private final Semaphore semaphore;
     private Carta cartaNaMesa;
     private boolean isSuaRodada;
-    private ArrayList<Oponente> opontentes;
+    private final ArrayList<Oponente> opontentes;
     private boolean novaRodada;
     private int rodadaAtual;
+    private boolean sairDoJogo;
 
     public Game() throws IOException {
+        sairDoJogo = false;
         rodadaAtual = 0;
         novaRodada = false;
         opontentes = new ArrayList<>();
         isSuaRodada = false;
-        semaphore = new Semaphore(1);
         podeComecar = false;
         client = new Client(new Socket("localhost", 6789));
         client.escutaMensagem();
@@ -48,9 +47,9 @@ public class Game implements Runnable {
 
         Queue<String> mensagensRecebidas = new LinkedList<>();
 
-        while (true) {
+        do {
             try {
-                semaphore.acquire();
+                Screen.mensagensSemaphore.acquire();
             } catch (InterruptedException e) {
                 System.out.println("Semaphore Exception");
             }
@@ -58,17 +57,16 @@ public class Game implements Runnable {
                 if (client.getMensagensRecebidas().peek().equals(""))
                     client.getMensagensRecebidas().poll();
 
-            if (!(client.getMensagensRecebidas().size() == 0) && client.getMensagensRecebidas().peek() != null) {
+            if (!(client.getMensagensRecebidas().isEmpty()) && client.getMensagensRecebidas().peek() != null) {
                 for (int i = 0; i < client.getMensagensRecebidas().size(); i++) {
                     try {
                         mensagensRecebidas.add(client.getMensagensRecebidas().remove());
-                        System.out.println("lendo msgs de entrada!");
                     } catch (Exception e) {
                         System.out.println("Erro ao receber mensagensRecebidas");
                     }
                 }
             }
-            semaphore.release();
+            Screen.mensagensSemaphore.release();
 
             if (mensagensRecebidas.peek() != null)
                 if (mensagensRecebidas.peek().equals(""))
@@ -80,41 +78,35 @@ public class Game implements Runnable {
                     // Alteração no Numero de Players
                     case 1:
                         try {
-                            semaphore.acquire();
+                            Screen.numPlayersSemaphore.acquire();
                         } catch (InterruptedException e) {
                             System.out.println("Semaphore Exception");
                         }
                         numPlayers = Integer.parseInt(mensagemRecebida[1]);
-                        semaphore.release();
+                        Screen.numPlayersSemaphore.release();
                         break;
                     // Caso a partida ja esteja Lotada
                     case 2:
                         try {
-                            semaphore.acquire();
+                            Screen.tipoDePrintSemaphore.acquire();
                         } catch (InterruptedException e) {
                             System.out.println("Semaphore Exception");
                         }
                         Screen.tipoDePrint = 2;
-                        semaphore.release();
+                        Screen.tipoDePrintSemaphore.release();
                         break;
                     // Entrada aceita
                     case 3:
                         try {
-                            semaphore.acquire();
+                            Screen.tipoDePrintSemaphore.acquire();
                         } catch (InterruptedException e) {
                             System.out.println("Semaphore Exception");
                         }
                         Screen.tipoDePrint = 1;
-                        semaphore.release();
+                        Screen.tipoDePrintSemaphore.release();
                         break;
                     // Pesca Carta
                     case 4:
-                        try {
-                            semaphore.acquire();
-                        } catch (InterruptedException e) {
-                            System.out.println("Semaphore Exception");
-                        }
-
                         // Verifica o valor/tipo e cor da carta recebida
                         valor = mensagemRecebida[1];
                         cor = mensagemRecebida[2];
@@ -123,17 +115,10 @@ public class Game implements Runnable {
                         carta = verificaTipoDeCarta(valor, cor);
 
                         client.getPlayer().addCarta(carta);
-
-                        semaphore.release();
                         break;
 
                     // Carta na Mesa
                     case 5:
-                        try {
-                            semaphore.acquire();
-                        } catch (InterruptedException e) {
-                            System.out.println("Semaphore Exception");
-                        }
                         // Verifica o valor/tipo e cor da carta recebida
                         valor = mensagemRecebida[1];
                         cor = mensagemRecebida[2];
@@ -142,24 +127,22 @@ public class Game implements Runnable {
                         carta = verificaTipoDeCarta(valor, cor);
 
                         cartaNaMesa = carta;
-
-                        semaphore.release();
                         break;
                     // Jogo iniciado
                     case 6:
                         try {
-                            semaphore.acquire();
+                            Screen.podeComecarSemaphore.acquire();
                         } catch (InterruptedException e) {
                             System.out.println("Semaphore Exception");
                         }
 
                         podeComecar = true;
-                        semaphore.release();
+                        Screen.podeComecarSemaphore.release();
                         break;
                     // Adiciona Oponentes
                     case 7:
                         try {
-                            semaphore.acquire();
+                            Screen.geralSemaphore.acquire();
                         } catch (InterruptedException e) {
                             System.out.println("Semaphore Exception");
                         }
@@ -170,37 +153,36 @@ public class Game implements Runnable {
                         System.out.println("Novo oponente: " + nome + ", ID: " + id + ", Quantidade de Cartas: " + quantCartas);
                         opontentes.add(new Oponente(nome, id, quantCartas));
 
-                        semaphore.release();
+                        Screen.geralSemaphore.release();
                         break;
 
                     //Altera isSuaRodada
                     case 8:
                         try {
-                            semaphore.acquire();
+                            Screen.novaRodadaSemaphore.acquire();
+                            Screen.rodadaAtualSemaphore.acquire();
                         } catch (InterruptedException e) {
                             System.out.println("Semaphore Exception");
                         }
 
                         int msg = Integer.parseInt(mensagemRecebida[1]);
 
-                        if (msg == 1)
-                            isSuaRodada = true;
-                        else
-                            isSuaRodada = false;
+                        isSuaRodada = msg == 1;
 
                         rodadaAtual++;
                         novaRodada = true;
 
-                        semaphore.release();
+                        Screen.novaRodadaSemaphore.release();
+                        Screen.rodadaAtualSemaphore.release();
                         break;
                     //Pergunta Cor
                     case 9:
                         break;
-                        //implementar
+                    //implementar
                     //Atualização na quantidade de cartas
                     case 10:
                         try {
-                            semaphore.acquire();
+                            Screen.geralSemaphore.acquire();
                         } catch (InterruptedException e) {
                             System.out.println("Semaphore Exception");
                         }
@@ -214,13 +196,12 @@ public class Game implements Runnable {
                             }
                         }
 
-
-                        semaphore.release();
+                        Screen.geralSemaphore.release();
                         break;
 
                 }
             }
-        }
+        } while (!sairDoJogo);
     }
 
     private Carta verificaTipoDeCarta(String valor, String cor) {
@@ -255,17 +236,10 @@ public class Game implements Runnable {
         return podeComecar;
     }
 
-    public void setPodeComecar(boolean podeComecar) {
-        this.podeComecar = podeComecar;
-    }
-
     public int getRodadaAtual() {
         return rodadaAtual;
     }
 
-    public void setRodadaAtual(int rodadaAtual) {
-        this.rodadaAtual = rodadaAtual;
-    }
 
     public boolean isNovaRodada() {
         return novaRodada;

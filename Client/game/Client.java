@@ -32,7 +32,7 @@ public class Client {
     }
 
     public void enviaMensagem(String mensagem, int i) {// Header de mensagem (int no inicio): 1 igual a nome, 2 igual a
-                                                       // estado de pronto do player,
+        // estado de pronto do player,
         try {
             switch (i) {
                 case 1:
@@ -74,13 +74,16 @@ public class Client {
 
             @Override
             public void run() {
+                String mensagem = null;
                 while (socket.isConnected()) {
                     try {
-                        mensagensRecebidas.add(bufferedReader.readLine());
-                    } catch (IOException e) {
+                        mensagem = bufferedReader.readLine();
+                        Screen.mensagensSemaphore.acquire();
+                        mensagensRecebidas.add(mensagem);
+                    } catch (IOException | InterruptedException e) {
                         closeTudo(bufferedReader, bufferedWriter, socket);
                     }
-
+                    Screen.mensagensSemaphore.release();
                 }
             }
 
@@ -95,9 +98,4 @@ public class Client {
     public Queue<String> getMensagensRecebidas() {
         return mensagensRecebidas;
     }
-
-    public void setMensagensRecebidas(Queue<String> mensagensRecebidas) {
-        this.mensagensRecebidas = mensagensRecebidas;
-    }
-
 }

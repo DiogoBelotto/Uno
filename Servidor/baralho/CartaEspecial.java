@@ -20,34 +20,23 @@ public class CartaEspecial extends Carta {
         return "+4";
     }
 
-    public void setTipoEspecial(TipoEspecial tipoEspecial) {
-        this.tipoEspecial = tipoEspecial;
-    }
-
     @Override
     public String toString() {
-        switch (tipoEspecial) {
-            case MAIS_2:
-                return super.getStringCor() + "+2" + "\u001B[0m";
-            case BLOQUEIO:
-                return super.getStringCor() + "PJ" + "\u001B[0m";
-            case INVERTE_ORDEM:
-                return super.getStringCor() + "IN" + "\u001B[0m";
-            case MAIS_4:
-                return super.getStringCor() + "+4" + "\u001B[0m";
-            case MUDA_COR:
-                return super.getStringCor() + "MC" + "\u001B[0m";
-        }
-        return "";
+        return switch (tipoEspecial) {
+            case MAIS_2 -> super.getStringCor() + "+2" + "\u001B[0m";
+            case BLOQUEIO -> super.getStringCor() + "PJ" + "\u001B[0m";
+            case INVERTE_ORDEM -> super.getStringCor() + "IN" + "\u001B[0m";
+            case MAIS_4 -> super.getStringCor() + "+4" + "\u001B[0m";
+            case MUDA_COR -> super.getStringCor() + "MC" + "\u001B[0m";
+        };
     }
 
     public static Cor getCor(String cor) {
-        if (cor.equals("azul"))
-            return Cor.AZUL;
-        if (cor.equals("verde"))
-            return Cor.VERDE;
-        if (cor.equals("AMARELO"))
-            return Cor.AMARELO;
-        return Cor.VERMELHO;
+        return switch (cor) {
+            case "azul" -> Cor.AZUL;
+            case "verde" -> Cor.VERDE;
+            case "AMARELO" -> Cor.AMARELO;
+            default -> Cor.VERMELHO;
+        };
     }
 }

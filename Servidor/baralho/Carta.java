@@ -29,19 +29,13 @@ public class Carta {
     }
 
     public String getStringCor() {
-        switch (this.cor) {
-            case AZUL:
-                return ANSI_BLUE;
-            case AMARELO:
-                return ANSI_YELLOW;
-            case VERMELHO:
-                return ANSI_RED;
-            case VERDE:
-                return ANSI_GREEN;
-            case SEM_COR:
-                return ANSI_NORMAL;
-        }
-        return "";
+        return switch (this.cor) {
+            case AZUL -> ANSI_BLUE;
+            case AMARELO -> ANSI_YELLOW;
+            case VERMELHO -> ANSI_RED;
+            case VERDE -> ANSI_GREEN;
+            case SEM_COR -> ANSI_NORMAL;
+        };
     }
 
 }

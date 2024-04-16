@@ -1,7 +1,5 @@
 package gameServer;
 
-import java.util.concurrent.Semaphore;
-
 import baralho.Baralho;
 import baralho.Carta;
 import baralho.CartaEspecial;
@@ -11,13 +9,11 @@ import players.Player;
 public class GameOnGoing implements Runnable {
     private Baralho baralho;
     private Carta cartaNaMesa;
-    private final Semaphore semaphore;
     private int posicaoAtual;
     private boolean isOrdemParaDireita;
 
     public GameOnGoing() {
         posicaoAtual = 0;
-        semaphore = new Semaphore(1);
         baralho = new Baralho();
     }
 
@@ -33,7 +29,7 @@ public class GameOnGoing implements Runnable {
     public void run() {
         //Aciona um semaphore para acessar a lista de players e dar 7 cartas para cada via metodo
         try {
-            semaphore.acquire();
+            Server.playersSemaphore.acquire();
         } catch (InterruptedException e) {
             System.out.println("espera");
         }
@@ -41,17 +37,16 @@ public class GameOnGoing implements Runnable {
             daCartasIniciais(GameListener.players.get(i));
         }
         //Libera o semaphore
-        semaphore.release();
+        Server.playersSemaphore.release();
 
         //Coloca uma carta na mesa
         boolean cartaNaMesaValida = false;
         while (!cartaNaMesaValida) {
             //A carta na mesa precisa ser uma carta normal, pesca uma nova caso seja especial
             cartaNaMesa = baralho.pescaCarta();
-            if(cartaNaMesa instanceof CartaNormal)
+            if (cartaNaMesa instanceof CartaNormal)
                 cartaNaMesaValida = true;
         }
-
 
 
         //Mostra o Deck inicial de cada jogador (Usado para debug)
@@ -115,23 +110,23 @@ public class GameOnGoing implements Runnable {
             //Se não tem nova mensagem entra em loop, usando o sempahore
             do {
                 try {
-                    semaphore.acquire();
+                    Server.temNovaJogadaSemaphore.acquire();
                     temNovaJogada = GameListener.gameTemNovJogada;
                     Thread.sleep(100);
                 } catch (InterruptedException e) {
                     System.out.println("sleep/semaphore exeption");
                 }
-                semaphore.release();
+                Server.temNovaJogadaSemaphore.release();
             } while (!temNovaJogada);
 
             //Define gameTemNovaMensagem como false usando o sempahore
             try {
-                semaphore.acquire();
+                Server.temNovaJogadaSemaphore.acquire();
                 GameListener.gameTemNovJogada = false;
             } catch (InterruptedException e) {
                 System.out.println("semaphore exeption");
             }
-            semaphore.release();
+            Server.temNovaJogadaSemaphore.release();
 
         }
 
@@ -157,8 +152,8 @@ public class GameOnGoing implements Runnable {
         if ((posicaoAtual == 0) && !isOrdemParaDireita)
             return GameListener.numPlayers - 1;
         if (isOrdemParaDireita)
-            return posicaoAtual+1;
-        return posicaoAtual-1;
+            return posicaoAtual + 1;
+        return posicaoAtual - 1;
     }
 
     public Carta getCartaNaMesa() {
@@ -169,22 +164,16 @@ public class GameOnGoing implements Runnable {
         this.cartaNaMesa = cartaNaMesa;
     }
 
-    public Baralho getBaralho() {
-        return baralho;
-    }
 
-    public void setBaralho(Baralho baralho) {
-        this.baralho = baralho;
-    }
-
-    public void pescaCarta(int i){
-        String valor,cor;
+    public void pescaCarta(int i) {
+        String valor, cor;
         if (baralho.getBaralho().isEmpty())
             baralho.criaBaralho();
         Carta carta = baralho.getBaralho().poll();
         if (carta instanceof CartaEspecial) {
             valor = ((CartaEspecial) carta).getTipoEspecial();
         } else {
+            assert carta != null;
             valor = "" + ((CartaNormal) carta).getNumero();
         }
         cor = carta.getCor();
