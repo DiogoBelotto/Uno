@@ -52,6 +52,7 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
         // Loop que vai ficar escutando o socket aceito
+        String mensagem = null;
         while (socket.isConnected()) {
             try {
                 if (!temNovaMensagem) {
@@ -59,11 +60,14 @@ public class ClientHandler implements Runnable {
                     // passar as mensagem para classes externa
                     Semaphore semaphore = new Semaphore(1);
                     semaphore.acquire();
-                    //Adiciona a mensagem a varial junto ao id do clientHandler em questão para identificação externa
-                    novasMensagens.add(this.id + "\t" + bufferedReader.readLine());
+                    mensagem = bufferedReader.readLine();
+                    semaphore.release();
+
+                    //Adiciona a mensagem a variavel junto ao id do clientHandler em questão para identificação externa
+                    novasMensagens.add(this.id + "\t" + mensagem);
                     //DebugMSG - System.out.println(novaMensagem);
                     temNovaMensagem = true;
-                    semaphore.release();
+
                 }
             } catch (IOException e) {
                 closeTudo(bufferedReader, bufferedWriter, socket);

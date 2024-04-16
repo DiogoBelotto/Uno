@@ -40,11 +40,18 @@ public class GameOnGoing implements Runnable {
         for (int i = 0; i < GameListener.players.size(); i++) {
             daCartasIniciais(GameListener.players.get(i));
         }
-        semaphore.release();
         //Libera o semaphore
+        semaphore.release();
 
         //Coloca uma carta na mesa
-        cartaNaMesa = baralho.pescaCarta();
+        boolean cartaNaMesaValida = false;
+        while (!cartaNaMesaValida) {
+            //A carta na mesa precisa ser uma carta normal, pesca uma nova caso seja especial
+            cartaNaMesa = baralho.pescaCarta();
+            if(cartaNaMesa instanceof CartaNormal)
+                cartaNaMesaValida = true;
+        }
+
 
 
         //Mostra o Deck inicial de cada jogador (Usado para debug)
@@ -78,14 +85,15 @@ public class GameOnGoing implements Runnable {
                     String nome = ClientHandler.clientHandlers.get(i).getPlayer().getNome();
                     int id = ClientHandler.clientHandlers.get(i).getPlayer().getId();
                     int quantCartas = ClientHandler.clientHandlers.get(i).getPlayer().getDeck().size();
-                    ClientHandler.clientHandlers.get(i).toAClient("07\t" + nome + "\t" + id + "\t" + quantCartas + "\n", i);
+                    ClientHandler.clientHandlers.get(j).toAClient("07\t" + nome + "\t" + id + "\t" + quantCartas + "\n", j);
                 }
             }
         }
         ClientHandler.clientHandlers.getFirst().toAllClient("06\t\n");
-
+        isOrdemParaDireita = true;
         //Loop do jogo (em desenvolvimento)
         while (true) {
+            System.out.println("Teste");
             if (GameListener.numPlayers == 0)
                 break;
             if (baralho.getBaralho().isEmpty())
@@ -102,14 +110,28 @@ public class GameOnGoing implements Runnable {
 
             posicaoAtual = posicaoJogadorAtual();
 
+            boolean temNovaJogada = false;
 
-            while (!ClientHandler.temNovaMensagem) {
+            //Se não tem nova mensagem entra em loop, usando o sempahore
+            do {
                 try {
+                    semaphore.acquire();
+                    temNovaJogada = GameListener.gameTemNovJogada;
                     Thread.sleep(100);
                 } catch (InterruptedException e) {
-                    System.out.println("sleep exeption");
+                    System.out.println("sleep/semaphore exeption");
                 }
+                semaphore.release();
+            } while (!temNovaJogada);
+
+            //Define gameTemNovaMensagem como false usando o sempahore
+            try {
+                semaphore.acquire();
+                GameListener.gameTemNovJogada = false;
+            } catch (InterruptedException e) {
+                System.out.println("semaphore exeption");
             }
+            semaphore.release();
 
         }
 
@@ -125,7 +147,7 @@ public class GameOnGoing implements Runnable {
             valor = "" + ((CartaNormal) cartaNaMesa).getNumero();
         }
         cor = cartaNaMesa.getCor();
-        ClientHandler.clientHandlers.get(i).toAClient("05\t" + valor + "\t" + cor + "\n", i);
+        ClientHandler.clientHandlers.get(i).toAllClient("05\t" + valor + "\t" + cor + "\n");
     }
 
 
@@ -135,8 +157,8 @@ public class GameOnGoing implements Runnable {
         if ((posicaoAtual == 0) && !isOrdemParaDireita)
             return GameListener.numPlayers - 1;
         if (isOrdemParaDireita)
-            return posicaoAtual++;
-        return posicaoAtual--;
+            return posicaoAtual+1;
+        return posicaoAtual-1;
     }
 
     public Carta getCartaNaMesa() {

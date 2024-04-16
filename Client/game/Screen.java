@@ -72,9 +72,13 @@ public class Screen {
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-            if (Game.podeComecar)
+
+            if (game.isPodeComecar()) {
+                semaphore.release();
                 break;
+            }
             semaphore.release();
+
             if (!game.getClient().getPlayer().isPronto()) {
                 System.out.print("Aguardando players ficarem prontos! Se você está pronto digite 'S' ");
                 resposta = scanner.nextLine();
@@ -87,15 +91,16 @@ public class Screen {
                 resposta = "";
             }
         }
-        System.out.print(Game.podeComecar);
 
         // Quando podeComecar entra nesse loop
         while (!game.getOpontentes().isEmpty()) {
             // Caso os players tenham desconectado, encerra o Jogo
             // Layout da impressão deve mudar de acordo com a quantidade de players
+            System.out.print(game.getClient().getPlayer().getNome());
             switch (game.getNumPlayers()) {
                 case 2:
-                    System.out.print("[IN]: Invertede Ordem [PJ]: Pula Jogador [MD]: Muda Cor");
+                    System.out.print("Dois players\n");
+                    System.out.print("[IN]Invertede Ordem, [PJ]Pula Jogador, [MD]Muda Cor\n");
                     System.out.print("\r------" + game.getOpontentes().getFirst().getNome() + " ["
                             + game.getOpontentes().getFirst().getQuantCartas() + "] cartas");
                     System.out.print("\n\n---------" + game.getCartaNaMesa());
@@ -104,6 +109,8 @@ public class Screen {
                     break;
 
                 case 3:
+                    System.out.print("[IN]Invertede Ordem, [PJ]Pula Jogador, [MD]Muda Cor\n");
+                    System.out.print("tres players\n");
                     System.out.print("\033[H\033[2J" + "\r------" + "\u001B[32m" + game.getOpontentes().getFirst().getNome() + " ["
                             + game.getOpontentes().getFirst().getQuantCartas() + "] cartas" + "\u001B[0m");
                     System.out.print("\n------" + game.getOpontentes().get(1).getNome() + " ["
@@ -114,6 +121,8 @@ public class Screen {
                     break;
 
                 case 4:
+                    System.out.print("quatro players\n");
+                    System.out.print("[IN]Invertede Ordem, [PJ]Pula Jogador, [MD]Muda Cor\n");
                     System.out.print("\033[H\033[2J" + "\r------" + game.getOpontentes().getFirst().getNome() + " ["
                             + game.getOpontentes().getFirst().getQuantCartas() + "] cartas");
                     System.out.print("\n------" + game.getOpontentes().get(1).getNome() + " ["
@@ -127,13 +136,38 @@ public class Screen {
 
             }
 
-            while (game.getClient().getMensagensRecebidas().isEmpty()) {
-                try {
-                    Thread.sleep(200);
-                } catch (InterruptedException e) {
-                    System.out.println("sleep exception");
-                }
+            try {
+                semaphore.acquire();
+            } catch (InterruptedException e) {
+                System.out.println("semaphore exeption");
             }
+            if (game.getRodadaAtual() == 1 || game.getRodadaAtual() == 0) {
+                game.setNovaRodada(false);
+            }
+            semaphore.release();
+
+            boolean novaRodadada = false;
+            if(!game.isSuaRodada())
+                System.out.println("\nAguardando a rodada de outro Jogador! ");
+            //Verifica se é uma nova rodada, caso não fica no loop esperando alguma atualização de rodada
+            do {
+                try {
+                    semaphore.acquire();
+                    novaRodadada = game.isNovaRodada();
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    System.out.println("sleep/semaphore exeption");
+                }
+                semaphore.release();
+            } while (!novaRodadada);
+
+            try {
+                semaphore.acquire();
+                game.setNovaRodada(false);
+            } catch (InterruptedException e) {
+                System.out.println("semaphore exeption");
+            }
+            semaphore.release();
 
         }
         System.out.println("=======Jogo terminou!=======");
@@ -155,14 +189,26 @@ public class Screen {
                         System.out.print("\u001B[34m" + "\n--Insira -3 para GRITAR UNO PARA " + game.getOpontentes().get(i).getNome() + " --\u001B[0m");
                 }
 
+                boolean entradaValida = false;
                 String jogada = scanner.nextLine();
-                if (!isJogadaValida)
-                    System.out.println("Jogada inválida! ");
-                String jogadaTraduzidaParaEnvio = verificaJogada(Integer.parseInt(jogada));
-                isJogadaValida = !jogadaTraduzidaParaEnvio.equals("err01jogada-invalida01");
+                int escolha = -10;
+
+                while (!entradaValida) {
+                    try {
+                        escolha = Integer.parseInt(jogada);
+                        entradaValida = true;
+                    } catch (NumberFormatException e) {
+                        System.out.println("Jogada inválida! Tente novamente: ");
+                        jogada = scanner.nextLine();
+                    }
+                }
+
+                String jogadaTraduzidaParaEnvio = verificaJogada(escolha);
+                isJogadaValida = !jogadaTraduzidaParaEnvio.equals("err01jogada-invalida01\t");
+
                 if (isJogadaValida) {
                     game.getClient().enviaMensagem(jogadaTraduzidaParaEnvio, 5);
-                }
+                } else System.out.print("Jogada inválida! ");
             } while (!isJogadaValida);
         }
     }
@@ -170,19 +216,19 @@ public class Screen {
     public String verificaJogada(int jogada) {
 
         //pescar carta
-        if (jogada - 1 == -2) {
+        if (jogada == -1) {
             return "4\t";
         }
 
         //gritar uno
-        if (jogada - 1 == -3) {
+        if (jogada == -2) {
             if (game.getClient().getPlayer().getDeck().size() == 1)
                 return "7\t";
             return "err01jogada-invalida01\t";
         }
 
         //gritar uno para outro jogador
-        if (jogada - 1 == -4) {
+        if (jogada == -3) {
             for (int i = 0; i < game.getOpontentes().size(); i++) {
                 if (!game.getOpontentes().get(i).isGritouUno() && game.getOpontentes().get(i).getQuantCartas() == 1)
                     return "8\t";
@@ -190,7 +236,7 @@ public class Screen {
             return "err01jogada-invalida01\t";
         }
         //jogar cartas
-        if (jogada - 1 > 0 && jogada - 1 < (game.getClient().getPlayer().getDeck().size())) {
+        if (jogada > 0 && jogada  < (game.getClient().getPlayer().getDeck().size())+1) {
             Carta carta = game.getClient().getPlayer().getDeck().get(jogada - 1);
             if (carta instanceof CartaEspecial) {
                 //Caso for um +4 ou Muda Cor
@@ -219,7 +265,7 @@ public class Screen {
                     game.getClient().getPlayer().getDeck().remove(jogada - 1);
                     return "6\t" + (jogada - 1);
                 }
-                if (((CartaEspecial) carta).getTipoEspecial().equals(TipoEspecial.INVERTE_ORDEM) || ((CartaEspecial) carta).getTipoEspecial().equals(TipoEspecial.BLOQUEIO)){
+                if (((CartaEspecial) carta).getTipoEspecial().equals(TipoEspecial.INVERTE_ORDEM) || ((CartaEspecial) carta).getTipoEspecial().equals(TipoEspecial.BLOQUEIO)) {
                     game.getClient().getPlayer().getDeck().remove(jogada - 1);
                     return "6\t" + (jogada - 1);
                 }
@@ -229,7 +275,7 @@ public class Screen {
                     return "5\t" + (jogada - 1);
                 }
                 if (game.getCartaNaMesa() instanceof CartaNormal) {
-                    if (((CartaNormal) game.getCartaNaMesa()).getNumero() == ((CartaNormal) carta).getNumero()){
+                    if (((CartaNormal) game.getCartaNaMesa()).getNumero() == ((CartaNormal) carta).getNumero()) {
                         game.getClient().getPlayer().getDeck().remove(jogada - 1);
                         return "5\t" + (jogada - 1);
                     }

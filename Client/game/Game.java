@@ -14,14 +14,18 @@ import players.Oponente;
 
 public class Game implements Runnable {
     private final Client client;
-    public static boolean podeComecar;
+    private boolean podeComecar;
     private int numPlayers;
     private final Semaphore semaphore;
     private Carta cartaNaMesa;
     private boolean isSuaRodada;
     private ArrayList<Oponente> opontentes;
+    private boolean novaRodada;
+    private int rodadaAtual;
 
     public Game() throws IOException {
+        rodadaAtual = 0;
+        novaRodada = false;
         opontentes = new ArrayList<>();
         isSuaRodada = false;
         semaphore = new Semaphore(1);
@@ -40,6 +44,7 @@ public class Game implements Runnable {
         String[] mensagemRecebida;
         String valor, cor;
         Carta carta;
+        int id, quantCartas;
 
         Queue<String> mensagensRecebidas = new LinkedList<>();
 
@@ -49,21 +54,24 @@ public class Game implements Runnable {
             } catch (InterruptedException e) {
                 System.out.println("Semaphore Exception");
             }
-            if (!client.getMensagensRecebidas().isEmpty()) {
+            if (client.getMensagensRecebidas().peek() != null)
+                if (client.getMensagensRecebidas().peek().equals(""))
+                    client.getMensagensRecebidas().poll();
+
+            if (!(client.getMensagensRecebidas().size() == 0) && client.getMensagensRecebidas().peek() != null) {
                 for (int i = 0; i < client.getMensagensRecebidas().size(); i++) {
-                    try{
+                    try {
                         mensagensRecebidas.add(client.getMensagensRecebidas().remove());
                         System.out.println("lendo msgs de entrada!");
-                    } catch (Exception e){
-                        System.out.println("Erro ao recebir mensagensRecebidas");
+                    } catch (Exception e) {
+                        System.out.println("Erro ao receber mensagensRecebidas");
                     }
-
                 }
-                
             }
             semaphore.release();
-            if(mensagensRecebidas.peek() != null)
-                if(mensagensRecebidas.peek().equals(""))
+
+            if (mensagensRecebidas.peek() != null)
+                if (mensagensRecebidas.peek().equals(""))
                     mensagensRecebidas.poll();
             if (!mensagensRecebidas.isEmpty() && mensagensRecebidas.peek() != null) {
                 System.out.println("\u001B[32m" + "msg: " + mensagensRecebidas.peek() + "\u001B[0m");
@@ -145,7 +153,7 @@ public class Game implements Runnable {
                             System.out.println("Semaphore Exception");
                         }
 
-                        Game.podeComecar = true;
+                        podeComecar = true;
                         semaphore.release();
                         break;
                     // Adiciona Oponentes
@@ -156,15 +164,15 @@ public class Game implements Runnable {
                             System.out.println("Semaphore Exception");
                         }
                         String nome = mensagemRecebida[1];
-                        int id = Integer.parseInt(mensagemRecebida[2]);
-                        int quantCartas = Integer.parseInt(mensagemRecebida[3]);
+                        id = Integer.parseInt(mensagemRecebida[2]);
+                        quantCartas = Integer.parseInt(mensagemRecebida[3]);
 
                         System.out.println("Novo oponente: " + nome + ", ID: " + id + ", Quantidade de Cartas: " + quantCartas);
                         opontentes.add(new Oponente(nome, id, quantCartas));
 
                         semaphore.release();
                         break;
-                    
+
                     //Altera isSuaRodada
                     case 8:
                         try {
@@ -175,13 +183,41 @@ public class Game implements Runnable {
 
                         int msg = Integer.parseInt(mensagemRecebida[1]);
 
-                        if(msg == 1)
+                        if (msg == 1)
                             isSuaRodada = true;
                         else
                             isSuaRodada = false;
 
+                        rodadaAtual++;
+                        novaRodada = true;
+
                         semaphore.release();
                         break;
+                    //Pergunta Cor
+                    case 9:
+                        break;
+                        //implementar
+                    //Atualização na quantidade de cartas
+                    case 10:
+                        try {
+                            semaphore.acquire();
+                        } catch (InterruptedException e) {
+                            System.out.println("Semaphore Exception");
+                        }
+                        id = Integer.parseInt(mensagemRecebida[1]);
+                        quantCartas = Integer.parseInt(mensagemRecebida[2]);
+
+                        for (Oponente opontente : opontentes) {
+                            if (opontente.getId() == id) {
+                                opontente.setQuantCartas(quantCartas);
+                                System.out.println(opontente.getQuantCartas());
+                            }
+                        }
+
+
+                        semaphore.release();
+                        break;
+
                 }
             }
         }
@@ -215,4 +251,27 @@ public class Game implements Runnable {
         return opontentes;
     }
 
+    public boolean isPodeComecar() {
+        return podeComecar;
+    }
+
+    public void setPodeComecar(boolean podeComecar) {
+        this.podeComecar = podeComecar;
+    }
+
+    public int getRodadaAtual() {
+        return rodadaAtual;
+    }
+
+    public void setRodadaAtual(int rodadaAtual) {
+        this.rodadaAtual = rodadaAtual;
+    }
+
+    public boolean isNovaRodada() {
+        return novaRodada;
+    }
+
+    public void setNovaRodada(boolean novaRodada) {
+        this.novaRodada = novaRodada;
+    }
 }

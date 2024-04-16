@@ -15,8 +15,10 @@ public class GameListener implements Runnable {
     private int totalProntos;
     private final GameOnGoing gameOnGoing;
     public static LinkedList<Player> players;
+    public static boolean gameTemNovJogada;
 
     public GameListener() {
+        gameTemNovJogada = false;
         gameOnGoing = new GameOnGoing();
         players = new LinkedList<>();
         numPlayers = 0;
@@ -97,9 +99,8 @@ public class GameListener implements Runnable {
                                 }
                             }
                             numPlayers--;
-                            if (ClientHandler.clientHandlers != null && ClientHandler.clientHandlers.getFirst() != null)
-                                if (!ClientHandler.clientHandlers.isEmpty())
-                                    ClientHandler.clientHandlers.getFirst().toAllClient("01\t" + numPlayers + "\n");
+                            if (ClientHandler.clientHandlers != null && ClientHandler.clientHandlers.size() != 0)
+                                ClientHandler.clientHandlers.getFirst().toAllClient("01\t" + numPlayers + "\n");
                             System.out.println("player SAIU! total de players: " + numPlayers);
                             break;
 
@@ -123,13 +124,19 @@ public class GameListener implements Runnable {
 
                             }
                             break;
+                        //Pescar carta
                         case 4:
                             for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
                                 if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
                                     gameOnGoing.pescaCarta(i);
                                 }
+
                             }
+                            //Envia para os oponentes a quantidade de cartas atualizada
+                            enviaQuantCartas(clientMessage);
+                            gameTemNovJogada = true;
                             break;
+                        //Jogar carta  normal
                         case 5:
                             for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
                                 if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
@@ -138,7 +145,10 @@ public class GameListener implements Runnable {
                                     ClientHandler.clientHandlers.get(i).getPlayer().getDeck().remove(Integer.parseInt(clientMessage[2]));
                                 }
                             }
+                            enviaQuantCartas(clientMessage);
+                            gameTemNovJogada = true;
                             break;
+                        //Jogar carta  especial
                         case 6:
                             for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
                                 if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
@@ -154,6 +164,8 @@ public class GameListener implements Runnable {
                                     }
                                 }
                             }
+                            enviaQuantCartas(clientMessage);
+                            gameTemNovJogada = true;
                             break;
                     }
                 }
@@ -161,6 +173,16 @@ public class GameListener implements Runnable {
             }
             // Libera o semaphore após acessar as condições de corrida
             semaphore.release();
+        }
+    }
+
+    private void enviaQuantCartas(String[] clientMessage) {
+        for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
+            if (!ClientHandler.clientHandlers.get(i).equals(ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])))) {
+                int id = ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])).getPlayer().getId();
+                int quantCartas = ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])).getPlayer().getDeck().size();
+                ClientHandler.clientHandlers.get(i).toAClient("10\t" + id + "\t" + quantCartas + "\n", i);
+            }
         }
     }
 }
