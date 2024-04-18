@@ -97,45 +97,55 @@ public class GameOnGoing implements Runnable {
         isOrdemParaDireita = true;
         //Loop do jogo (em desenvolvimento)
         while (true) {
-            System.out.println("Teste");
             if (GameListener.numPlayers == 0)
                 break;
             if (baralho.getBaralho().isEmpty())
                 baralho.criaBaralho();
 
-            //Comunica o player que é sua rodada
-            ClientHandler.clientHandlers.get(posicaoAtual).toAClient("08\t1\n", posicaoAtual);
-            //Envia aos demais players que não é sua rodada
+            //Se Algum jogador ganhar
             for (int i = 0; i < GameListener.players.size(); i++) {
-                if (i != posicaoAtual) {
-                    ClientHandler.clientHandlers.get(i).toAClient("08\t0\n", i);
+                if (ClientHandler.clientHandlers.get(i).getPlayer().getDeck().isEmpty()) {
+                    ClientHandler.clientHandlers.get(i).toAllClient("13\t" + ClientHandler.clientHandlers.get(i).getPlayer().getId() + "\n");
                 }
             }
 
-            posicaoAtual = posicaoJogadorAtual();
+            //Se algum oponente gritou uno, remove isso e avisa aos jogadores antes
+            if (GameListener.oponenteGritouUno) {
+                GameListener.oponenteGritouUno = false;
+                GameListener.enviaGritouUno(null, false);
+                for (int i = 0; i < GameListener.players.size(); i++) {
+                    if (ClientHandler.clientHandlers.get(i).getPlayer().isGritouUno()) {
+                        String[] j = {String.valueOf(ClientHandler.clientHandlers.get(i).getId())};
+                        GameListener.enviaGritouUno(j, true);
+                    }
+                }
 
-            boolean temNovaJogada = false;
+                //Enviar ao jogador que o oponente não gritou mais uno
+            }
 
-            //Se não tem nova mensagem entra em loop, usando o sempahore
-            do {
+
+            if (!GameListener.jogadaCartaEspecial) {
+                //Comunica o player que é sua rodada
+                ClientHandler.clientHandlers.get(posicaoAtual).toAClient("08\t1\n", posicaoAtual);
+                //Envia aos demais players que não é sua rodada
+                for (int i = 0; i < GameListener.players.size(); i++) {
+                    if (i != posicaoAtual) {
+                        ClientHandler.clientHandlers.get(i).toAClient("08\t0\n", i);
+                    }
+                }
+            } else GameListener.jogadaCartaEspecial = false;
+
+
+            posicaoAtual = posicaoJogadorAtual(false);
+
+
+            synchronized (this) {
                 try {
-                    Server.temNovaJogadaSemaphore.acquire();
-                    temNovaJogada = GameListener.gameTemNovJogada;
-                    Thread.sleep(100);
+                    this.wait();
                 } catch (InterruptedException e) {
-                    System.out.println("sleep/semaphore exeption");
+                    System.out.println("espera");
                 }
-                Server.temNovaJogadaSemaphore.release();
-            } while (!temNovaJogada);
-
-            //Define gameTemNovaMensagem como false usando o sempahore
-            try {
-                Server.temNovaJogadaSemaphore.acquire();
-                GameListener.gameTemNovJogada = false;
-            } catch (InterruptedException e) {
-                System.out.println("semaphore exeption");
             }
-            Server.temNovaJogadaSemaphore.release();
 
         }
 
@@ -155,14 +165,22 @@ public class GameOnGoing implements Runnable {
     }
 
 
-    public int posicaoJogadorAtual() {
-        if ((posicaoAtual == GameListener.numPlayers - 1) && isOrdemParaDireita)
+    public int posicaoJogadorAtual(boolean jogadorAnterior) {
+        boolean isOrdemParaDireitaInterna;
+        if (jogadorAnterior && isOrdemParaDireita) {
+            isOrdemParaDireitaInterna = false;
+        } else if (jogadorAnterior) {
+            isOrdemParaDireitaInterna = true;
+        } else isOrdemParaDireitaInterna = isOrdemParaDireita;
+
+        if ((posicaoAtual == GameListener.numPlayers - 1) && isOrdemParaDireitaInterna)
             return 0;
-        if ((posicaoAtual == 0) && !isOrdemParaDireita)
+        if ((posicaoAtual == 0) && !isOrdemParaDireitaInterna)
             return GameListener.numPlayers - 1;
-        if (isOrdemParaDireita)
+        if (isOrdemParaDireitaInterna)
             return posicaoAtual + 1;
         return posicaoAtual - 1;
+
     }
 
     public Carta getCartaNaMesa() {

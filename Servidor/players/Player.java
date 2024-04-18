@@ -9,8 +9,10 @@ public class Player {
     private final String nome;
     private boolean pronto;
     private int id;
+    private boolean gritouUno;
 
     public Player(String nome) {
+        gritouUno = false;
         pronto = false;
         this.nome = nome;
         deck = new LinkedList<Carta>();
@@ -49,5 +51,12 @@ public class Player {
         this.id = id;
     }
 
-    
+
+    public boolean isGritouUno() {
+        return gritouUno;
+    }
+
+    public void setGritouUno(boolean gritouUno) {
+        this.gritouUno = gritouUno;
+    }
 }

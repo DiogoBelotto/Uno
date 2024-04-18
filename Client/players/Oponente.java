@@ -4,10 +4,10 @@ public class Oponente {
     private String nome;
     private final int id;
     private int quantCartas;
-    private boolean gritouUno;
+    private boolean gritouUnoParasi;
 
     public Oponente(String nome, int id, int quantCartas) {
-        gritouUno = false;
+        gritouUnoParasi = false;
         this.nome = nome;
         this.id = id;
         this.quantCartas = quantCartas;
@@ -30,8 +30,13 @@ public class Oponente {
     }
 
 
-    public boolean isGritouUno() {
-        return gritouUno;
+    public boolean isGritouUnoParasi() {
+        return gritouUnoParasi;
     }
+
+    public void setGritouUnoParasi(boolean gritouUnoParasi) {
+        this.gritouUnoParasi = gritouUnoParasi;
+    }
+
 
 }

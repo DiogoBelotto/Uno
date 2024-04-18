@@ -8,7 +8,6 @@ public class Player {
     private LinkedList<Carta> deck;
     private String nome;
     private boolean pronto;
-    private boolean gritouUno;
 
     public Player() {
         deck = new LinkedList<>();
@@ -47,13 +46,5 @@ public class Player {
 
     public void setPronto(boolean pronto) {
         this.pronto = pronto;
-    }
-
-    public boolean isGritouUno() {
-        return gritouUno;
-    }
-
-    public void setGritouUno(boolean gritouUno) {
-        this.gritouUno = gritouUno;
     }
 }

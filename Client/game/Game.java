@@ -21,8 +21,11 @@ public class Game implements Runnable {
     private boolean novaRodada;
     private int rodadaAtual;
     private boolean sairDoJogo;
+    private boolean oponenteGritouUNo;
+    private Screen screen;
 
-    public Game() throws IOException {
+    public Game(Screen screen) throws IOException {
+        oponenteGritouUNo = false;
         sairDoJogo = false;
         rodadaAtual = 0;
         novaRodada = false;
@@ -31,6 +34,7 @@ public class Game implements Runnable {
         podeComecar = false;
         client = new Client(new Socket("localhost", 6789));
         client.escutaMensagem();
+        this.screen = screen;
     }
 
     public Client getClient() {
@@ -44,6 +48,7 @@ public class Game implements Runnable {
         String valor, cor;
         Carta carta;
         int id, quantCartas;
+        boolean gritouUno;
 
         Queue<String> mensagensRecebidas = new LinkedList<>();
 
@@ -72,7 +77,7 @@ public class Game implements Runnable {
                 if (mensagensRecebidas.peek().equals(""))
                     mensagensRecebidas.poll();
             if (!mensagensRecebidas.isEmpty() && mensagensRecebidas.peek() != null) {
-                System.out.println("\u001B[32m" + "msg: " + mensagensRecebidas.peek() + "\u001B[0m");
+                System.out.println(mensagensRecebidas.peek());
                 mensagemRecebida = mensagensRecebidas.poll().split("\t");
                 switch (Integer.parseInt(mensagemRecebida[0])) {
                     // Alteração no Numero de Players
@@ -119,6 +124,7 @@ public class Game implements Runnable {
 
                     // Carta na Mesa
                     case 5:
+
                         // Verifica o valor/tipo e cor da carta recebida
                         valor = mensagemRecebida[1];
                         cor = mensagemRecebida[2];
@@ -127,6 +133,11 @@ public class Game implements Runnable {
                         carta = verificaTipoDeCarta(valor, cor);
 
                         cartaNaMesa = carta;
+
+                        synchronized (screen) {
+                            screen.notifyAll();
+                        }
+
                         break;
                     // Jogo iniciado
                     case 6:
@@ -150,8 +161,11 @@ public class Game implements Runnable {
                         id = Integer.parseInt(mensagemRecebida[2]);
                         quantCartas = Integer.parseInt(mensagemRecebida[3]);
 
-                        System.out.println("Novo oponente: " + nome + ", ID: " + id + ", Quantidade de Cartas: " + quantCartas);
                         opontentes.add(new Oponente(nome, id, quantCartas));
+
+                        synchronized (screen) {
+                            screen.notifyAll();
+                        }
 
                         Screen.geralSemaphore.release();
                         break;
@@ -169,6 +183,16 @@ public class Game implements Runnable {
 
                         isSuaRodada = msg == 1;
 
+                        synchronized (screen) {
+                            try {
+                                Thread.sleep(300);
+                            } catch (InterruptedException e) {
+                                throw new RuntimeException(e);
+                            }
+                            screen.notifyAll();
+                        }
+
+
                         rodadaAtual++;
                         novaRodada = true;
 
@@ -176,10 +200,6 @@ public class Game implements Runnable {
                         Screen.rodadaAtualSemaphore.release();
                         break;
                     //Pergunta Cor
-                    case 9:
-                        break;
-                    //implementar
-                    //Atualização na quantidade de cartas
                     case 10:
                         try {
                             Screen.novaRodadaSemaphore.acquire();
@@ -193,14 +213,47 @@ public class Game implements Runnable {
                         for (Oponente opontente : opontentes) {
                             if (opontente.getId() == id) {
                                 opontente.setQuantCartas(quantCartas);
-                                System.out.println(opontente.getQuantCartas());
                             }
                         }
 
-                        novaRodada = true;
-
                         Screen.novaRodadaSemaphore.release();
                         Screen.geralSemaphore.release();
+                        break;
+                    //Jogador gritou uno
+                    case 11:
+                        id = Integer.parseInt(mensagemRecebida[1]);
+                        gritouUno = Boolean.parseBoolean(mensagemRecebida[2]);
+
+                        for (Oponente opontente : opontentes) {
+                            if (opontente.getId() == id) {
+                                opontente.setGritouUnoParasi(gritouUno);
+                            }
+                        }
+
+                        break;
+                    //Oponente gritou uno
+                    case 12:
+                        gritouUno = Boolean.parseBoolean(mensagemRecebida[1]);
+
+                        oponenteGritouUNo = gritouUno;
+                        break;
+
+                    case 13:
+                        try {
+                            Screen.tipoDePrintSemaphore.acquire();
+                        } catch (InterruptedException e) {
+                            System.out.println("Semaphore Exception");
+                        }
+                        Screen.tipoDePrint = 3;
+                        Screen.tipoDePrintSemaphore.release();
+
+                        for (int i = 0; i < opontentes.size(); i++) {
+                            if ((opontentes.get(i).getId() == Integer.parseInt(mensagemRecebida[1]))) {
+                                System.out.println("\u001B[32m" + "O Player " + opontentes.get(i).getNome() + " ganhou! \u001B[0m");
+                                break;
+                            }
+                        }
+                        System.out.println("\u001B[32m" + "O Player " + client.getPlayer().getNome() + " ganhou! \u001B[0m");
                         break;
 
                 }
@@ -240,16 +293,9 @@ public class Game implements Runnable {
         return podeComecar;
     }
 
-    public int getRodadaAtual() {
-        return rodadaAtual;
+
+    public boolean isOponenteGritouUNo() {
+        return oponenteGritouUNo;
     }
 
-
-    public boolean isNovaRodada() {
-        return novaRodada;
-    }
-
-    public void setNovaRodada(boolean novaRodada) {
-        this.novaRodada = novaRodada;
-    }
 }

@@ -11,14 +11,12 @@ public class Server {
     public static Semaphore mensagensSemaphore;
     public static Semaphore numPlayersSemaphore;
     public static Semaphore playersSemaphore;
-    public static Semaphore temNovaJogadaSemaphore;
     public static Semaphore geralSemaphore;
 
     public Server(ServerSocket serverSocket) throws IOException {
         mensagensSemaphore = new Semaphore(1);
         numPlayersSemaphore = new Semaphore(1);
         playersSemaphore = new Semaphore(1);
-        temNovaJogadaSemaphore = new Semaphore(1);
         geralSemaphore = new Semaphore(1);
 
         gameListener = new GameListener();

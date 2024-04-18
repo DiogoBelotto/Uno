@@ -15,8 +15,12 @@ public class GameListener implements Runnable {
     private final GameOnGoing gameOnGoing;
     public static LinkedList<Player> players;
     public static boolean gameTemNovJogada;
+    public static boolean jogadaCartaEspecial;
+    public static boolean oponenteGritouUno;
 
     public GameListener() {
+        oponenteGritouUno = false;
+        jogadaCartaEspecial = false;
         gameTemNovJogada = false;
         gameOnGoing = new GameOnGoing();
         players = new LinkedList<>();
@@ -59,7 +63,7 @@ public class GameListener implements Runnable {
                 for (int i = 0; i < ClientHandler.novasMensagens.size(); i++) {
                     newMessages.add(ClientHandler.novasMensagens.poll());
                 }
-                System.out.println("\u001B[32m" + "msg: " + newMessages.peek() + "\u001B[0m");
+                System.out.println("\u001B[32m" + "Mensagem de entrada: " + newMessages.peek() + "\u001B[0m");
                 String[] clientMessage = newMessages.poll().split("\t");
                 Player player;
                 if (newMessages.isEmpty())
@@ -153,24 +157,24 @@ public class GameListener implements Runnable {
                         case 4:
                             for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
                                 if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
+                                    if (ClientHandler.clientHandlers.get(i).getPlayer().getDeck().size() == 1)
+                                        ClientHandler.clientHandlers.get(i).getPlayer().setGritouUno(false);
                                     gameOnGoing.pescaCarta(i);
                                 }
 
                             }
 
-                            try {
-                                Server.temNovaJogadaSemaphore.acquire();
-                            } catch (InterruptedException e) {
-                                System.out.println("Sempahore Exception!");
-                            }
                             //Envia para os oponentes a quantidade de cartas atualizada
                             enviaQuantCartas(clientMessage, false);
-                            gameTemNovJogada = true;
-                            Server.temNovaJogadaSemaphore.release();
+                            synchronized (gameOnGoing) {
+                                gameOnGoing.notify();
+                            }
                             break;
                         //Jogar carta  normal
                         case 5:
                             for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
+                                //Informa, primeiramente, para todos os  jogadores que não é mais sua vez, para garantir que ele não entre em um scanner nextLine
+                                ClientHandler.clientHandlers.get(i).toAClient("08\t0\n", i);
                                 if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
                                     gameOnGoing.setCartaNaMesa(ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2])));
                                     gameOnGoing.enviaCartaNaMesa(i);
@@ -178,57 +182,123 @@ public class GameListener implements Runnable {
                                 }
                             }
                             enviaQuantCartas(clientMessage, false);
-                            try {
-                                Server.temNovaJogadaSemaphore.acquire();
-                            } catch (InterruptedException e) {
-                                System.out.println("Sempahore Exception!");
+
+                            synchronized (gameOnGoing) {
+                                gameOnGoing.notify();
                             }
-                            gameTemNovJogada = true;
-                            Server.temNovaJogadaSemaphore.release();
+
                             break;
                         //Jogar carta  especial
                         case 6:
+                            Player playerDaRodada = null;
                             for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
+                                //Informa, primeiramente, para todos os  jogadores que não é mais sua vez, para garantir que ele não entre em um scanner nextLine
+                                ClientHandler.clientHandlers.get(i).toAClient("08\t0\n", i);
                                 if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
                                     //Realiza a ação da carta especial
-                                    if (("IN").equals(((CartaEspecial) ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial())) {
+                                    playerDaRodada = ClientHandler.clientHandlers.get(i).getPlayer();
+                                    if (("IN").equals(((CartaEspecial) playerDaRodada.getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial())) {
                                         gameOnGoing.setOrdemParaDireita(!gameOnGoing.isOrdemParaDireita());
+                                        playerDaRodada = null;
                                     }
-                                    if (((CartaEspecial) ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial().equals("+2")) {
-                                        gameOnGoing.setPosicaoAtual(gameOnGoing.posicaoJogadorAtual());
-                                        gameOnGoing.pescaCarta(gameOnGoing.posicaoJogadorAtual());
-                                        gameOnGoing.pescaCarta(gameOnGoing.posicaoJogadorAtual());
+                                    if (playerDaRodada != null) {
+                                        if (((CartaEspecial) playerDaRodada.getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial().equals("+2")) {
+                                            gameOnGoing.pescaCarta(gameOnGoing.getPosicaoAtual());
+                                            gameOnGoing.pescaCarta(gameOnGoing.getPosicaoAtual());
+                                            gameOnGoing.setPosicaoAtual(gameOnGoing.posicaoJogadorAtual(false));
+                                            System.out.println(gameOnGoing.getPosicaoAtual());
+                                        } else if (((CartaEspecial) playerDaRodada.getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial().equals("+4")) {
+                                            gameOnGoing.pescaCarta(gameOnGoing.getPosicaoAtual());
+                                            gameOnGoing.pescaCarta(gameOnGoing.getPosicaoAtual());
+                                            gameOnGoing.pescaCarta(gameOnGoing.getPosicaoAtual());
+                                            gameOnGoing.pescaCarta(gameOnGoing.getPosicaoAtual());
+                                            gameOnGoing.setPosicaoAtual(gameOnGoing.posicaoJogadorAtual(false));
+                                            System.out.println(gameOnGoing.getPosicaoAtual());
+                                        } else if (((CartaEspecial) playerDaRodada.getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial().equals("PJ")) {
+                                            gameOnGoing.setPosicaoAtual(gameOnGoing.posicaoJogadorAtual(false));
+                                        }
                                     }
-                                    if (((CartaEspecial) ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial().equals("+4")) {
-                                        gameOnGoing.setPosicaoAtual(gameOnGoing.posicaoJogadorAtual());
-                                        gameOnGoing.pescaCarta(gameOnGoing.posicaoJogadorAtual());
-                                        gameOnGoing.pescaCarta(gameOnGoing.posicaoJogadorAtual());
-                                        gameOnGoing.pescaCarta(gameOnGoing.posicaoJogadorAtual());
-                                        gameOnGoing.pescaCarta(gameOnGoing.posicaoJogadorAtual());
-                                    }
-                                    if (((CartaEspecial) ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial().equals("PJ")) {
-                                        gameOnGoing.setPosicaoAtual(gameOnGoing.posicaoJogadorAtual());
-                                    }
-                                    //Seta carta na Mesa, e caso for uma carta de escolher cor altera sua cor também
-                                    if (clientMessage.length == 4) {
-                                        ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2])).setCor(CartaEspecial.getCor(clientMessage[3]));
-                                    }
-                                    gameOnGoing.setCartaNaMesa(ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2])));
-                                    gameOnGoing.enviaCartaNaMesa(i);
-                                    ClientHandler.clientHandlers.get(i).getPlayer().getDeck().remove(Integer.parseInt(clientMessage[2]));
-
-                                    //Atualiza quantidade de cartas dos oponenetes
-                                    enviaQuantCartas(clientMessage, true);
-
                                 }
                             }
-                            try {
-                                Server.temNovaJogadaSemaphore.acquire();
-                            } catch (InterruptedException e) {
-                                System.out.println("Sempahore Exception!");
+                            for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
+                                //Seta carta na Mesa, e caso for uma carta de escolher cor altera sua cor também
+                                if (clientMessage.length == 4) {
+                                    if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
+                                        ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2])).setCor(CartaEspecial.getCor(clientMessage[3]));
+                                    }
+                                }
+                                if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
+                                    gameOnGoing.setCartaNaMesa(ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2])));
+                                    gameOnGoing.enviaCartaNaMesa(i);
+                                    boolean isMudaCor = false;
+                                    if (playerDaRodada != null) {
+                                        isMudaCor = ((CartaEspecial) playerDaRodada.getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial().equals("MC");
+                                    }
+
+                                    ClientHandler.clientHandlers.get(i).getPlayer().getDeck().remove(Integer.parseInt(clientMessage[2]));
+                                    //Atualiza quantidade de cartas dos oponenetes e para si mesmo
+                                    if (!isMudaCor) {
+                                        enviaQuantCartas(clientMessage, true);
+                                    }
+                                }
                             }
-                            gameTemNovJogada = true;
-                            Server.temNovaJogadaSemaphore.release();
+                            enviaQuantCartas(clientMessage, false);
+                            String[] idJogadorQuePescou = {String.valueOf(gameOnGoing.posicaoJogadorAtual(true))};
+                            enviaQuantCartas(idJogadorQuePescou, false);
+
+                            //Envia aos players que a informação de que há uma nova rodada, apenas se for uma carta especial do tipo +2, +4 ou PJ, que vão pular um jogador
+                            for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
+                                if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
+                                    if (playerDaRodada != null) {
+                                        jogadaCartaEspecial = true;
+                                        //Comunica o player que é sua rodada
+                                        ClientHandler.clientHandlers.get(gameOnGoing.getPosicaoAtual()).toAClient("08\t1\n", gameOnGoing.getPosicaoAtual());
+                                        //Envia aos demais players que não é sua rodada
+                                        for (int j = 0; j < GameListener.players.size(); j++) {
+                                            if (j != gameOnGoing.getPosicaoAtual()) {
+                                                ClientHandler.clientHandlers.get(j).toAClient("08\t0\n", j);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+
+                            synchronized (gameOnGoing) {
+                                gameOnGoing.notify();
+                            }
+
+                            break;
+                        //Grita uno para si mesmo
+                        case 7:
+                            //Caso nenhum oponente tenha gritado uno antes
+                            if (!oponenteGritouUno) {
+                                for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
+                                    if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
+                                        ClientHandler.clientHandlers.get(i).getPlayer().setGritouUno(true);
+                                        //Enviar aos oponentes o estado de gritouUno do player
+                                        enviaGritouUno(clientMessage, true);
+                                    }
+                                }
+                            }
+
+
+                            break;
+                        //Grita uno para oponente
+                        case 8:
+                            //Caso o jogador não tenha gritado uno antes
+                            for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
+                                if (ClientHandler.clientHandlers.get(i).getPlayer().getDeck().size() == 1) {
+                                    if (!ClientHandler.clientHandlers.get(i).getPlayer().isGritouUno()) {
+                                        oponenteGritouUno = true;
+                                        gameOnGoing.pescaCarta(i);
+                                        gameOnGoing.pescaCarta(i);
+                                        //Enviar para o jogador que o oponente gritou uno
+                                        enviaGritouUno(clientMessage, false);
+                                    }
+                                }
+                            }
+
                             break;
                     }
                 }
@@ -240,18 +310,43 @@ public class GameListener implements Runnable {
     }
 
     private void enviaQuantCartas(String[] clientMessage, boolean siProprio) {
-        int id = ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])).getPlayer().getId();
-        int quantCartas = ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])).getPlayer().getDeck().size();
-
-        if(siProprio){
+        if (siProprio) {
+            int id = ClientHandler.clientHandlers.get(gameOnGoing.posicaoJogadorAtual(true)).getPlayer().getId();
+            int quantCartas = ClientHandler.clientHandlers.get(gameOnGoing.posicaoJogadorAtual(true)).getPlayer().getDeck().size();
             ClientHandler clientHandler = (ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])));
             clientHandler.toAClient("10\t" + id + "\t" + quantCartas + "\n", Integer.parseInt(clientMessage[0]));
             return;
         }
         for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
             if (!ClientHandler.clientHandlers.get(i).equals(ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])))) {
+                int id = ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])).getPlayer().getId();
+                int quantCartas = ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])).getPlayer().getDeck().size();
                 ClientHandler.clientHandlers.get(i).toAClient("10\t" + id + "\t" + quantCartas + "\n", i);
             }
         }
+    }
+
+    public static void enviaGritouUno(String[] clientMessage, boolean unoParaSi) {
+        if (unoParaSi) {
+            for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
+                if (!ClientHandler.clientHandlers.get(i).equals(ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])))) {
+                    int id = ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])).getPlayer().getId();
+                    boolean gritouUno = ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])).getPlayer().isGritouUno();
+                    ClientHandler.clientHandlers.get(i).toAClient("11\t" + id + "\t" + gritouUno + "\n", i);
+                }
+            }
+            return;
+        }
+        int i = 0;
+        while (i < ClientHandler.clientHandlers.size()) {
+            if (ClientHandler.clientHandlers.get(i).getPlayer().getDeck().size() == 1) {
+                break;
+            }
+            i++;
+        }
+        i--;
+        boolean gritouUno = oponenteGritouUno;
+        ClientHandler clientHandler = (ClientHandler.clientHandlers.get(i));
+        clientHandler.toAClient("12\t" + gritouUno + "\n", i);
     }
 }

@@ -83,6 +83,7 @@ public class ClientHandler implements Runnable {
                 clienteHandler.bufferedWriter.write(message);
                 clienteHandler.bufferedWriter.newLine();
                 clienteHandler.bufferedWriter.flush();
+                System.out.print("\u001B[34m" + "Mensagem de saida para Todos os Clientes: " + message + "\u001B[0m");
             } catch (IOException e) {
                 closeTudo(bufferedReader, bufferedWriter, socket);
             }
@@ -95,6 +96,7 @@ public class ClientHandler implements Runnable {
             ClientHandler.getClientHandlers().get(i).getBufferedWriter().write(message);
             ClientHandler.getClientHandlers().get(i).getBufferedWriter().newLine();
             ClientHandler.getClientHandlers().get(i).getBufferedWriter().flush();
+            System.out.print("\u001B[34m" + "Mensagem de saida para o cliente de Id - " + ClientHandler.getClientHandlers().get(i).getPlayer().getId() + ": " + message + "\u001B[0m");
         } catch (IOException e) {
             System.out.println("Single sent msg Execption");
         }
