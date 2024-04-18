@@ -115,6 +115,7 @@ public class GameOnGoing implements Runnable {
                 GameListener.enviaGritouUno(null, false);
                 for (int i = 0; i < GameListener.players.size(); i++) {
                     if (ClientHandler.clientHandlers.get(i).getPlayer().isGritouUno()) {
+                        ClientHandler.clientHandlers.get(i).getPlayer().setGritouUno(false);
                         String[] j = {String.valueOf(ClientHandler.clientHandlers.get(i).getId())};
                         GameListener.enviaGritouUno(j, true);
                     }

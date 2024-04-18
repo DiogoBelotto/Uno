@@ -141,14 +141,21 @@ public class Screen {
         while (!game.getOpontentes().isEmpty()) {
             // Caso os players tenham desconectado, encerra o Jogo
             // Layout da impressão deve mudar de acordo com a quantidade de players
+            try {
+                geralSemaphore.acquire();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
             switch (game.getNumPlayers()) {
                 case 2:
+
                     System.out.print("\033[H\033[2J" + "\u001B[32m" + "Dois players\n");
                     System.out.print("[IN]Inverte Ordem, [PJ]Pula Jogador, [MC]Muda Cor\n");
                     System.out.print("\033[H\033[2J" + "\r------" + game.getOpontentes().getFirst().getNome() + " ["
                             + game.getOpontentes().getFirst().getQuantCartas() + "] cartas");
                     System.out.print("\n\n---------" + game.getCartaNaMesa());
                     System.out.print("\n\n------" + game.getClient().getPlayer().getDeck() + "\u001B[0m");
+                    geralSemaphore.release();
                     isSuaRodada();
                     break;
 
@@ -161,6 +168,7 @@ public class Screen {
                             + game.getOpontentes().get(1).getQuantCartas() + "] cartas");
                     System.out.print("\n\n---------" + game.getCartaNaMesa());
                     System.out.print("\n\n------" + game.getClient().getPlayer().getDeck() + "\u001B[0m");
+                    geralSemaphore.release();
                     isSuaRodada();
                     break;
 
@@ -175,8 +183,10 @@ public class Screen {
                             + game.getOpontentes().get(2).getQuantCartas() + "] cartas");
                     System.out.print("\n\n---------" + game.getCartaNaMesa());
                     System.out.print("\n\n------" + game.getClient().getPlayer().getDeck() + "\u001B[0m");
+                    geralSemaphore.release();
                     isSuaRodada();
                     break;
+
 
             }
 
@@ -277,6 +287,7 @@ public class Screen {
                 jogadasTraduzidasParaEnvio.clear();
             } while (!isJogadaValida);
         }
+        game.setSuaRodada(false);
     }
 
     public String verificaJogada(int[] jogada) {

@@ -6,14 +6,6 @@
 4 cartas curinga
 total de cartas : 108
 
-coisas para implementar:
-jogador poder jogar um +2 sobre o +2 jogado na mesa
-jogador poder jogar um +4 sobre o +4 jogado na mesa
-mostrar qual oponente esta na vez
-mostrar porque a jogada inválida, por exemplo: "Carta de cor diferente", "Mensagem digitada inválida"
-ainda nao esta funcionando as rodadas
-escolher carta também não
-possível memory leak no Client-Game-run(), print de lendo msgs de entrada!
 
 
 REDES (COMUNICAÇÃO ENTRE CLIENT E SERVIDOR)
@@ -28,7 +20,10 @@ PARA CLIENTE:
 06 - jogo iniciado
 07 - cria oponentes
 08 - seu turno
-09- pergunta cor
+10 - muda quantidade cartas oponente
+11 - envia aos oponentes que o jogador gritou uno
+12 - envia ao jogador que o oponente gritou uno
+13 - jogador ganhou
 
 PARA SERVER:
 01 - add jogador/set nome
