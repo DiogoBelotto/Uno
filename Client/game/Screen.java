@@ -7,7 +7,6 @@ import baralho.TipoEspecial;
 
 import java.io.IOException;
 import java.util.LinkedList;
-import java.util.Scanner;
 import java.util.concurrent.Semaphore;
 
 public class Screen {
@@ -15,26 +14,21 @@ public class Screen {
     public static int tipoDePrint;
     public static Semaphore mensagensSemaphore;
     public static Semaphore tipoDePrintSemaphore;
-    public static Semaphore podeComecarSemaphore;
-    public static Semaphore rodadaAtualSemaphore;
-    public static Semaphore novaRodadaSemaphore;
-    public static Semaphore numPlayersSemaphore;
     public static Semaphore geralSemaphore;
-    private Thread th1;
+    public static Semaphore gritarUno;
+    public static Semaphore podeComecarSemaphore;
     private final PerguntaPlayer perguntaPlayer;
 
 
     public Screen() throws IOException {
         perguntaPlayer = new PerguntaPlayer(this);
-        th1 = new Thread(perguntaPlayer);
+        Thread th1 = new Thread(perguntaPlayer);
         th1.start();
+        gritarUno = new Semaphore(1);
         mensagensSemaphore = new Semaphore(1);
         tipoDePrintSemaphore = new Semaphore(1);
-        podeComecarSemaphore = new Semaphore(1);
-        rodadaAtualSemaphore = new Semaphore(1);
-        novaRodadaSemaphore = new Semaphore(1);
-        numPlayersSemaphore = new Semaphore(1);
         geralSemaphore = new Semaphore(1);
+        podeComecarSemaphore = new Semaphore(1);
         tipoDePrint = 0;
         game = new Game(this);
     }
@@ -47,6 +41,12 @@ public class Screen {
 
         // loop que printa a tela do jogo
         do {
+            //Sleep para diminuir o Uso de cpu do while
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
             try {
                 tipoDePrintSemaphore.acquire();
             } catch (InterruptedException e) {
@@ -99,7 +99,9 @@ public class Screen {
         String resposta = null;
         // Loop para aguardar o jogo iniciar
         while (true) {
+            //Sleep para diminuir o Uso de cpu do while
             try {
+                Thread.sleep(50);
                 podeComecarSemaphore.acquire();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
@@ -117,6 +119,10 @@ public class Screen {
                 //Libera a Thread de leitura do Usuario
                 synchronized (perguntaPlayer){
                     perguntaPlayer.notify();
+                }
+
+                synchronized (game){
+                    game.notify();
                 }
                 //Aguarda a Thread de leitura do Usuario
                 synchronized (this) {
@@ -213,11 +219,21 @@ public class Screen {
                 System.out.print("\u001B[32m" + "\n--Indique a posição da carta para jogar (de 1 até " + game.getClient().getPlayer().getDeck().size() + "):\u001B[0m");
                 System.out.print("\u001B[32m" + "\n--Ou insira -1 para pescar carta--" + "\u001B[0m");
                 if (game.getClient().getPlayer().getDeck().size() == 2)
-                    System.out.print("\u001B[34m" + "\n--Insira um 'espaço' e -2 no final da jogada para GRITAR UNO ao jogar \n(Ex:'2 -2' (Carta num. 2 gritando uno))--" + "\u001B[0m");
-                for (int i = 0; i < game.getOpontentes().size(); i++) {
-                    if (!game.getOpontentes().get(i).isGritouUnoParasi() && game.getOpontentes().get(i).getQuantCartas() == 1)
-                        System.out.print("\u001B[34m" + "\n--Insira um 'espaço' e -3 para GRITAR UNO PARA " + game.getOpontentes().get(i).getNome() + "\n(Ex:'2 -2' (Carta num. 2 gritando uno))-- \u001B[0m");
+                    System.out.print("""
+                            \u001B[34m
+                            --Insira um 'espaço' e -2 no final da jogada para GRITAR UNO ao jogar\s
+                            (Ex:'2 -2' (Carta num. 2 gritando uno))--\u001B[0m""");
+
+                try {
+                    Screen.gritarUno.acquire();
+                } catch (InterruptedException e) {
+                    System.out.println("Semaphore Exception");
                 }
+                for (int i = 0; i < game.getOpontentes().size(); i++) {
+                    if (!game.getOpontentes().get(i).isGritouUnoParasi() && game.getOpontentes().get(i).getQuantCartas() == 1 && !game.oponenteGritouUno)
+                        System.out.print("\u001B[34m" + "\n--Insira um 'espaço' e -3 para GRITAR UNO PARA " + game.getOpontentes().get(i).getNome() + "\n(Ex:'2 -3' (Carta num. 2 gritando uno para Oponente)\u001B[0m");
+                }
+                Screen.gritarUno.release();
 
                 boolean entradaValida = false;
                 //Libera a Thread de leitura do Usuario
@@ -296,16 +312,32 @@ public class Screen {
         if (jogada.length == 2) {
             //gritar uno
             if (jogada[1] == -2) {
-                if ((game.getClient().getPlayer().getDeck().size() == 1 || game.getClient().getPlayer().getDeck().size() == 2) && !game.isOponenteGritouUNo())
+                try {
+                    Screen.gritarUno.acquire();
+                } catch (InterruptedException e) {
+                    System.out.println("Semaphore Exception");
+                }
+                if ((game.getClient().getPlayer().getDeck().size() == 1 || game.getClient().getPlayer().getDeck().size() == 2) && !game.isOponenteGritouUNo()){
+                    Screen.gritarUno.release();
                     return "7\t";
+                }
+                Screen.gritarUno.release();
                 return "err01jogada-invalida01\t";
             }
             //gritar uno para outro jogador
             if (jogada[1] == -3) {
-                for (int i = 0; i < game.getOpontentes().size(); i++) {
-                    if (!game.getOpontentes().get(i).isGritouUnoParasi() && game.getOpontentes().get(i).getQuantCartas() == 1)
-                        return "8\t";
+                try {
+                    Screen.gritarUno.acquire();
+                } catch (InterruptedException e) {
+                    System.out.println("Semaphore Exception");
                 }
+                for (int i = 0; i < game.getOpontentes().size(); i++) {
+                    if (!game.getOpontentes().get(i).isGritouUnoParasi() && game.getOpontentes().get(i).getQuantCartas() == 1 && !game.oponenteGritouUno){
+                        Screen.gritarUno.release();
+                        return "8\t";
+                    }
+                }
+                Screen.gritarUno.release();
                 return "err01jogada-invalida01\t";
             }
         }

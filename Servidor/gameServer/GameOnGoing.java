@@ -96,9 +96,7 @@ public class GameOnGoing implements Runnable {
         ClientHandler.clientHandlers.getFirst().toAllClient("06\t\n");
         isOrdemParaDireita = true;
         //Loop do jogo (em desenvolvimento)
-        while (true) {
-            if (GameListener.numPlayers == 0)
-                break;
+        while (GameListener.numPlayers != 0) {
             if (baralho.getBaralho().isEmpty())
                 baralho.criaBaralho();
 
@@ -108,22 +106,6 @@ public class GameOnGoing implements Runnable {
                     ClientHandler.clientHandlers.get(i).toAllClient("13\t" + ClientHandler.clientHandlers.get(i).getPlayer().getId() + "\n");
                 }
             }
-
-            //Se algum oponente gritou uno, remove isso e avisa aos jogadores antes
-            if (GameListener.oponenteGritouUno) {
-                GameListener.oponenteGritouUno = false;
-                GameListener.enviaGritouUno(null, false);
-                for (int i = 0; i < GameListener.players.size(); i++) {
-                    if (ClientHandler.clientHandlers.get(i).getPlayer().isGritouUno()) {
-                        ClientHandler.clientHandlers.get(i).getPlayer().setGritouUno(false);
-                        String[] j = {String.valueOf(ClientHandler.clientHandlers.get(i).getId())};
-                        GameListener.enviaGritouUno(j, true);
-                    }
-                }
-
-                //Enviar ao jogador que o oponente não gritou mais uno
-            }
-
 
             if (!GameListener.jogadaCartaEspecial) {
                 //Comunica o player que é sua rodada
@@ -145,6 +127,20 @@ public class GameOnGoing implements Runnable {
                     this.wait();
                 } catch (InterruptedException e) {
                     System.out.println("espera");
+                }
+            }
+
+            //Se algum oponente gritou uno, remove isso e avisa aos jogadores antes
+            if (GameListener.oponenteGritouUno) {
+                GameListener.oponenteGritouUno = false;
+                ClientHandler.clientHandlers.getFirst().toAllClient("14\t" + false + "\n");
+                GameListener.enviaGritouUno(null, false);
+                for (int i = 0; i < GameListener.players.size(); i++) {
+                    if (ClientHandler.clientHandlers.get(i).getPlayer().isGritouUno()) {
+                        ClientHandler.clientHandlers.get(i).getPlayer().setGritouUno(false);
+                        String[] j = {String.valueOf(ClientHandler.clientHandlers.get(i).getId())};
+                        GameListener.enviaGritouUno(j, true);
+                    }
                 }
             }
 
@@ -182,10 +178,6 @@ public class GameOnGoing implements Runnable {
             return posicaoAtual + 1;
         return posicaoAtual - 1;
 
-    }
-
-    public Carta getCartaNaMesa() {
-        return cartaNaMesa;
     }
 
     public void setCartaNaMesa(Carta cartaNaMesa) {

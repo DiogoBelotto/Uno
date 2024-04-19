@@ -78,12 +78,14 @@ public class ClientHandler implements Runnable {
 
     public void toAllClient(String message) {
         //Para enviar mensagem a todos os palyers (Broadcast)
+        System.out.print("\u001B[35m" + "Mensagem de saida para Todos os Clientes: " + message + "\u001B[0m");
+
         for (ClientHandler clienteHandler : clientHandlers) {
             try {
                 clienteHandler.bufferedWriter.write(message);
                 clienteHandler.bufferedWriter.newLine();
                 clienteHandler.bufferedWriter.flush();
-                System.out.print("\u001B[34m" + "Mensagem de saida para Todos os Clientes: " + message + "\u001B[0m");
+
             } catch (IOException e) {
                 closeTudo(bufferedReader, bufferedWriter, socket);
             }
@@ -159,4 +161,12 @@ public class ClientHandler implements Runnable {
         ClientHandler.novasMensagens = novasMensagens;
     }
 
+    //Encontra o clientHandler por seu ID e retorna sua Posição na lista de ClientHandlers
+    public static int getByID(int i){
+        for(int j=0; j< clientHandlers.size(); j++){
+            if(clientHandlers.get(j).getId() == i)
+                return j;
+        }
+        return -1;
+    }
 }

@@ -1,6 +1,7 @@
 package gameServer;
 
 import java.util.LinkedList;
+import java.util.Objects;
 import java.util.Queue;
 
 import baralho.CartaEspecial;
@@ -30,24 +31,21 @@ public class GameListener implements Runnable {
 
     @Override
     public void run() {
-        // Semaphore para critic sessions
 
-        // Loop que verifica a existencia de mensagem escitas pelo ClienteHandler na
-        // variavel estatica novaMensagem e temNovaMensage
+        // Loop que verifica a existencia de mensagem escitas pelo ClienteHandler na variavel estatica novaMensagem e temNovaMensage
         Queue<String> newMessages = new LinkedList<>();
         while (true) {
-            // Caso o jogo ainda não foi iniciado e existam no minimo dois players com
-            // status pronto inicia a uma nova thread na Clase GameOnGoing
-            // responsável por controlar a lógica do jogo
+            // Caso o jogo ainda não foi iniciado e existam no minimo dois players com status pronto inicia a uma nova thread
+            // na Clase GameOnGoing responsável por controlar a lógica do jogo
             if (!jogoIniciado)
                 if (numPlayers > 1 && totalProntos == numPlayers) {
                     jogoIniciado = true;
                     Thread th1 = new Thread(gameOnGoing);
                     th1.start();
                 }
-            // Requesita o semaphore antes de entrar no switch e finaliza ao seu final
-            // visto que acessam e modificam muitas vezes as variaveis em seção critica
+            // Requesita o semaphore antes de entrar no switch e finaliza ao seu final visto que acessam e modificam muitas vezes as variaveis em seção critica
             try {
+                Thread.sleep(60);
                 Server.mensagensSemaphore.acquire();
             } catch (InterruptedException e) {
                 System.out.println("Sempahore Exception!");
@@ -56,16 +54,21 @@ public class GameListener implements Runnable {
 
             // Verifica se há alguma mensagem nova escutada pelos sockets
             if (ClientHandler.temNovaMensagem && ClientHandler.novasMensagens.peek() != null
-                    && !ClientHandler.novasMensagens.peek().equals("")) {
-                // Divide a mensagem em um array de Strings, a posição 0 é o id do
-                // ClientHandler/Player de Origem, a posição 1 é o identificador do tipo de
-                // ação a posição 2 a mensagem em si
+                    && !ClientHandler.novasMensagens.peek().isEmpty()) {
+                // Divide a mensagem em um array de Strings, a posição 0 é o id do ClientHandler/Player de Origem, a posição 1 é o identificador do tipo de ação
+                // a posição 2 a mensagem em si, no caso de uma carta com opção de escolher cor há uma posição 3
                 for (int i = 0; i < ClientHandler.novasMensagens.size(); i++) {
                     newMessages.add(ClientHandler.novasMensagens.poll());
                 }
+
+                //Printa todas as mensagens de entrada
                 System.out.println("\u001B[32m" + "Mensagem de entrada: " + newMessages.peek() + "\u001B[0m");
-                String[] clientMessage = newMessages.poll().split("\t");
+                String[] clientMessage = Objects.requireNonNull(newMessages.poll()).split("\t");
+
                 Player player;
+                int j;
+                ClientHandler clientHandler;
+
                 if (newMessages.isEmpty())
                     ClientHandler.temNovaMensagem = false;
 
@@ -74,32 +77,32 @@ public class GameListener implements Runnable {
                     switch (Integer.parseInt(clientMessage[1])) {
                         // Identificador 1: Criar Jogador com nome recebido por mensagem
                         case 1:
-                            for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
-                                if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
-                                    ClientHandler.clientHandlers.get(i)
-                                            .setPlayer(new Player(clientMessage[2]));
-                                    player = ClientHandler.clientHandlers.get(i).getPlayer();
-                                    player.setId(ClientHandler.clientHandlers.get(i).getId());
+                            //Encontra o clientHandler por seu ID
+                            j = ClientHandler.getByID(Integer.parseInt(clientMessage[0]));
+                            clientHandler = ClientHandler.clientHandlers.get(j);
 
-                                    try {
-                                        Server.playersSemaphore.acquire();
-                                        Server.numPlayersSemaphore.acquire();
-                                    } catch (InterruptedException e) {
-                                        System.out.println("Sempahore Exception!");
-                                    }
+                            clientHandler.setPlayer(new Player(clientMessage[2]));
+                            player = clientHandler.getPlayer();
+                            player.setId(clientHandler.getId());
 
-                                    players.add(player);
-
-                                    Server.playersSemaphore.release();
-
-                                    System.out.println(player.getNome());
-                                    System.out.println("player ENTROU! total de palyers: " + numPlayers);
-                                    ClientHandler.clientHandlers.getFirst().toAllClient("01\t" + numPlayers + "\n");
-
-                                    Server.numPlayersSemaphore.release();
-                                }
-
+                            try {
+                                Server.playersSemaphore.acquire();
+                                Server.numPlayersSemaphore.acquire();
+                            } catch (InterruptedException e) {
+                                System.out.println("Sempahore Exception!");
                             }
+
+                            players.add(player);
+
+                            Server.playersSemaphore.release();
+
+                            System.out.println(player.getNome());
+                            System.out.println("player ENTROU! total de palyers: " + numPlayers);
+                            ClientHandler.clientHandlers.getFirst().toAllClient("01\t" + numPlayers + "\n");
+
+                            Server.numPlayersSemaphore.release();
+
+
                             break;
 
                         // Identificador 2: Saída de Jogador
@@ -111,6 +114,7 @@ public class GameListener implements Runnable {
                                 System.out.println("Sempahore Exception!");
                             }
 
+                            //Encontra o clientHandler por seu ID
                             for (int i = 0; i < players.size(); i++) {
                                 if (players.get(i).getId() == Integer.parseInt(clientMessage[0])) {
                                     if (players.get(i).isPronto())
@@ -118,8 +122,11 @@ public class GameListener implements Runnable {
                                     players.remove(i);
                                 }
                             }
+
                             Server.playersSemaphore.release();
+
                             numPlayers--;
+
                             if (ClientHandler.clientHandlers != null && !ClientHandler.clientHandlers.isEmpty())
                                 ClientHandler.clientHandlers.getFirst().toAllClient("01\t" + numPlayers + "\n");
                             System.out.println("player SAIU! total de players: " + numPlayers);
@@ -129,40 +136,36 @@ public class GameListener implements Runnable {
 
                         // Identificador 3: Jogador deu pronto
                         case 3:
-                            for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
-                                if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
-                                    boolean isPronto = clientMessage[2].equals("true");
-                                    if (isPronto) {
-                                        try {
-                                            Server.numPlayersSemaphore.acquire();
-                                        } catch (InterruptedException e) {
-                                            System.out.println("Sempahore Exception!");
-                                        }
-                                        ClientHandler.clientHandlers.get(i).getPlayer().setPronto(true);
-                                        totalProntos++;
-                                        System.out.println(
-                                                "Player " + ClientHandler.clientHandlers.get(i).getPlayer().getNome()
-                                                        + " está pronto! \nFaltam " + (numPlayers - totalProntos)
-                                                        + " players darem pronto para o jogo iniciar!");
-                                        System.out.println(
-                                                (numPlayers == 1) ? "Mas nao é possivel jogar sozinho!" : "\r");
-                                        Server.numPlayersSemaphore.release();
-                                    }
+                            //Encontra o clientHandler por seu ID
+                            j = ClientHandler.getByID(Integer.parseInt(clientMessage[0]));
+                            clientHandler = ClientHandler.clientHandlers.get(j);
 
+                            boolean isPronto = clientMessage[2].equals("true");
+                            if (isPronto) {
+                                try {
+                                    Server.numPlayersSemaphore.acquire();
+                                } catch (InterruptedException e) {
+                                    System.out.println("Sempahore Exception!");
                                 }
-
+                                clientHandler.getPlayer().setPronto(true);
+                                totalProntos++;
+                                System.out.println("Player " + clientHandler.getPlayer().getNome()
+                                        + " está pronto! \nFaltam " + (numPlayers - totalProntos)
+                                        + " players darem pronto para o jogo iniciar!");
+                                System.out.println((numPlayers == 1) ? "Mas nao é possivel jogar sozinho!" : "\r");
+                                Server.numPlayersSemaphore.release();
                             }
                             break;
+
                         //Pescar carta
                         case 4:
-                            for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
-                                if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
-                                    if (ClientHandler.clientHandlers.get(i).getPlayer().getDeck().size() == 1)
-                                        ClientHandler.clientHandlers.get(i).getPlayer().setGritouUno(false);
-                                    gameOnGoing.pescaCarta(i);
-                                }
+                            //Encontra o clientHandler por seu ID
+                            j = ClientHandler.getByID(Integer.parseInt(clientMessage[0]));
+                            clientHandler = ClientHandler.clientHandlers.get(j);
 
-                            }
+                            if (clientHandler.getPlayer().getDeck().size() == 1)
+                                clientHandler.getPlayer().setGritouUno(false);
+                            gameOnGoing.pescaCarta(j);
 
                             //Envia para os oponentes a quantidade de cartas atualizada
                             enviaQuantCartas(clientMessage, false);
@@ -172,15 +175,14 @@ public class GameListener implements Runnable {
                             break;
                         //Jogar carta  normal
                         case 5:
-                            for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
-                                //Informa, primeiramente, para todos os  jogadores que não é mais sua vez, para garantir que ele não entre em um scanner nextLine
-                                ClientHandler.clientHandlers.get(i).toAClient("08\t0\n", i);
-                                if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
-                                    gameOnGoing.setCartaNaMesa(ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2])));
-                                    gameOnGoing.enviaCartaNaMesa(i);
-                                    ClientHandler.clientHandlers.get(i).getPlayer().getDeck().remove(Integer.parseInt(clientMessage[2]));
-                                }
-                            }
+                            //Encontra o clientHandler por seu ID
+                            j = ClientHandler.getByID(Integer.parseInt(clientMessage[0]));
+                            clientHandler = ClientHandler.clientHandlers.get(j);
+
+                            gameOnGoing.setCartaNaMesa(clientHandler.getPlayer().getDeck().get(Integer.parseInt(clientMessage[2])));
+                            gameOnGoing.enviaCartaNaMesa(j);
+                            clientHandler.getPlayer().getDeck().remove(Integer.parseInt(clientMessage[2]));
+
                             enviaQuantCartas(clientMessage, false);
 
                             synchronized (gameOnGoing) {
@@ -190,99 +192,86 @@ public class GameListener implements Runnable {
                             break;
                         //Jogar carta  especial
                         case 6:
-                            Player playerDaRodada = null;
-                            for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
-                                //Informa, primeiramente, para todos os  jogadores que não é mais sua vez, para garantir que ele não entre em um scanner nextLine
-                                ClientHandler.clientHandlers.get(i).toAClient("08\t0\n", i);
-                                if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
-                                    //Realiza a ação da carta especial
-                                    playerDaRodada = ClientHandler.clientHandlers.get(i).getPlayer();
-                                    if (("IN").equals(((CartaEspecial) playerDaRodada.getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial())) {
-                                        gameOnGoing.setOrdemParaDireita(!gameOnGoing.isOrdemParaDireita());
-                                        playerDaRodada = null;
-                                    }
-                                    if (playerDaRodada != null) {
-                                        if (((CartaEspecial) playerDaRodada.getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial().equals("+2")) {
-                                            gameOnGoing.pescaCarta(gameOnGoing.getPosicaoAtual());
-                                            gameOnGoing.pescaCarta(gameOnGoing.getPosicaoAtual());
-                                            gameOnGoing.setPosicaoAtual(gameOnGoing.posicaoJogadorAtual(false));
-                                            System.out.println(gameOnGoing.getPosicaoAtual());
-                                        } else if (((CartaEspecial) playerDaRodada.getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial().equals("+4")) {
-                                            gameOnGoing.pescaCarta(gameOnGoing.getPosicaoAtual());
-                                            gameOnGoing.pescaCarta(gameOnGoing.getPosicaoAtual());
-                                            gameOnGoing.pescaCarta(gameOnGoing.getPosicaoAtual());
-                                            gameOnGoing.pescaCarta(gameOnGoing.getPosicaoAtual());
-                                            gameOnGoing.setPosicaoAtual(gameOnGoing.posicaoJogadorAtual(false));
-                                            System.out.println(gameOnGoing.getPosicaoAtual());
-                                        } else if (((CartaEspecial) playerDaRodada.getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial().equals("PJ")) {
-                                            gameOnGoing.setPosicaoAtual(gameOnGoing.posicaoJogadorAtual(false));
-                                        }
-                                    }
-                                }
-                            }
-                            for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
-                                //Seta carta na Mesa, e caso for uma carta de escolher cor altera sua cor também
-                                if (clientMessage.length == 4) {
-                                    if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
-                                        ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2])).setCor(CartaEspecial.getCor(clientMessage[3]));
-                                    }
-                                }
-                                if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
-                                    gameOnGoing.setCartaNaMesa(ClientHandler.clientHandlers.get(i).getPlayer().getDeck().get(Integer.parseInt(clientMessage[2])));
-                                    gameOnGoing.enviaCartaNaMesa(i);
-                                    boolean isMudaCor = false;
-                                    if (playerDaRodada != null) {
-                                        isMudaCor = ((CartaEspecial) playerDaRodada.getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial().equals("MC");
-                                    }
+                            //Encontra o clientHandler por seu ID
+                            j = ClientHandler.getByID(Integer.parseInt(clientMessage[0]));
+                            clientHandler = ClientHandler.clientHandlers.get(j);
 
-                                    ClientHandler.clientHandlers.get(i).getPlayer().getDeck().remove(Integer.parseInt(clientMessage[2]));
-                                    //Atualiza quantidade de cartas dos oponenetes e para si mesmo
-                                    if (!isMudaCor) {
-                                        enviaQuantCartas(clientMessage, true);
-                                    }
+                            Player playerDaRodada;
+
+                            //Realiza a ação da carta especial
+                            playerDaRodada = clientHandler.getPlayer();
+                            if (("IN").equals(((CartaEspecial) playerDaRodada.getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial())) {
+                                gameOnGoing.setPosicaoAtual(gameOnGoing.posicaoJogadorAtual(true));
+                                gameOnGoing.setPosicaoAtual(gameOnGoing.posicaoJogadorAtual(true));
+                                gameOnGoing.setOrdemParaDireita(!gameOnGoing.isOrdemParaDireita());
+                                playerDaRodada = null;
+                            }
+                            if (playerDaRodada != null) {
+                                if (((CartaEspecial) playerDaRodada.getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial().equals("+2")) {
+                                    gameOnGoing.pescaCarta(gameOnGoing.getPosicaoAtual());
+                                    gameOnGoing.pescaCarta(gameOnGoing.getPosicaoAtual());
+                                    gameOnGoing.setPosicaoAtual(gameOnGoing.posicaoJogadorAtual(false));
+                                    System.out.println(gameOnGoing.getPosicaoAtual());
+                                } else if (((CartaEspecial) playerDaRodada.getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial().equals("+4")) {
+                                    gameOnGoing.pescaCarta(gameOnGoing.getPosicaoAtual());
+                                    gameOnGoing.pescaCarta(gameOnGoing.getPosicaoAtual());
+                                    gameOnGoing.pescaCarta(gameOnGoing.getPosicaoAtual());
+                                    gameOnGoing.pescaCarta(gameOnGoing.getPosicaoAtual());
+                                    gameOnGoing.setPosicaoAtual(gameOnGoing.posicaoJogadorAtual(false));
+                                    System.out.println(gameOnGoing.getPosicaoAtual());
+                                } else if (((CartaEspecial) playerDaRodada.getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial().equals("PJ")) {
+                                    gameOnGoing.setPosicaoAtual(gameOnGoing.posicaoJogadorAtual(false));
                                 }
                             }
+
+
+                            //Seta carta na Mesa, e caso for uma carta de escolher cor altera sua cor também
+                            if (clientMessage.length == 4) {
+                                clientHandler.getPlayer().getDeck().get(Integer.parseInt(clientMessage[2])).setCor(CartaEspecial.getCor(clientMessage[3]));
+                            }
+                            gameOnGoing.setCartaNaMesa(clientHandler.getPlayer().getDeck().get(Integer.parseInt(clientMessage[2])));
+                            gameOnGoing.enviaCartaNaMesa(j);
+                            boolean isMudaCor = false;
+                            if (playerDaRodada != null) {
+                                isMudaCor = ((CartaEspecial) playerDaRodada.getDeck().get(Integer.parseInt(clientMessage[2]))).getTipoEspecial().equals("MC");
+                            }
+
+                            clientHandler.getPlayer().getDeck().remove(Integer.parseInt(clientMessage[2]));
+                            //Atualiza quantidade de cartas dos oponenetes e para si mesmo
+                            if (!isMudaCor)
+                                enviaQuantCartas(clientMessage, true);
                             enviaQuantCartas(clientMessage, false);
                             String[] idJogadorQuePescou = {String.valueOf(gameOnGoing.posicaoJogadorAtual(true))};
                             enviaQuantCartas(idJogadorQuePescou, false);
 
-                            //Envia aos players que a informação de que há uma nova rodada, apenas se for uma carta especial do tipo +2, +4 ou PJ, que vão pular um jogador
-                            for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
-                                if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
-                                    if (playerDaRodada != null) {
-                                        jogadaCartaEspecial = true;
-                                        //Comunica o player que é sua rodada
-                                        ClientHandler.clientHandlers.get(gameOnGoing.getPosicaoAtual()).toAClient("08\t1\n", gameOnGoing.getPosicaoAtual());
-                                        //Envia aos demais players que não é sua rodada
-                                        for (int j = 0; j < GameListener.players.size(); j++) {
-                                            if (j != gameOnGoing.getPosicaoAtual()) {
-                                                ClientHandler.clientHandlers.get(j).toAClient("08\t0\n", j);
-                                            }
-                                        }
+                            //Envia aos players a informação de que há uma nova rodada, apenas se for uma carta especial do tipo +2, +4 ou PJ, que vão pular um jogador
+                            if (playerDaRodada != null) {
+                                jogadaCartaEspecial = true;
+                                //Comunica o player que é sua rodada
+                                ClientHandler.clientHandlers.get(gameOnGoing.getPosicaoAtual()).toAClient("08\t1\n", gameOnGoing.getPosicaoAtual());
+                                //Envia aos demais players que não é sua rodada
+                                for (int k = 0; k < GameListener.players.size(); k++) {
+                                    if (k != gameOnGoing.getPosicaoAtual()) {
+                                        ClientHandler.clientHandlers.get(k).toAClient("08\t0\n", k);
                                     }
                                 }
                             }
-
 
                             synchronized (gameOnGoing) {
                                 gameOnGoing.notify();
                             }
-
                             break;
                         //Grita uno para si mesmo
                         case 7:
+                            //Encontra o clientHandler por seu ID
+                            j = ClientHandler.getByID(Integer.parseInt(clientMessage[0]));
+                            clientHandler = ClientHandler.clientHandlers.get(j);
+
                             //Caso nenhum oponente tenha gritado uno antes
                             if (!oponenteGritouUno) {
-                                for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
-                                    if (ClientHandler.clientHandlers.get(i).getId() == Integer.parseInt(clientMessage[0])) {
-                                        ClientHandler.clientHandlers.get(i).getPlayer().setGritouUno(true);
-                                        //Enviar aos oponentes o estado de gritouUno do player
-                                        enviaGritouUno(clientMessage, true);
-                                    }
-                                }
+                                clientHandler.getPlayer().setGritouUno(true);
+                                enviaGritouUno(clientMessage, true);
                             }
-
-
                             break;
                         //Grita uno para oponente
                         case 8:
@@ -291,6 +280,7 @@ public class GameListener implements Runnable {
                                 if (ClientHandler.clientHandlers.get(i).getPlayer().getDeck().size() == 1) {
                                     if (!ClientHandler.clientHandlers.get(i).getPlayer().isGritouUno()) {
                                         oponenteGritouUno = true;
+                                        ClientHandler.clientHandlers.get(i).toAllClient("14\t" + true + "\n");
                                         gameOnGoing.pescaCarta(i);
                                         gameOnGoing.pescaCarta(i);
                                         //Enviar para o jogador que o oponente gritou uno
@@ -299,7 +289,6 @@ public class GameListener implements Runnable {
                                 }
                             }
 
-                            break;
                     }
                 }
 
@@ -313,14 +302,18 @@ public class GameListener implements Runnable {
         if (siProprio) {
             int id = ClientHandler.clientHandlers.get(gameOnGoing.posicaoJogadorAtual(true)).getPlayer().getId();
             int quantCartas = ClientHandler.clientHandlers.get(gameOnGoing.posicaoJogadorAtual(true)).getPlayer().getDeck().size();
-            ClientHandler clientHandler = (ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])));
+            int j = ClientHandler.getByID(Integer.parseInt(clientMessage[0]));
+            ClientHandler clientHandler = (ClientHandler.clientHandlers.get(j));
             clientHandler.toAClient("10\t" + id + "\t" + quantCartas + "\n", Integer.parseInt(clientMessage[0]));
             return;
         }
+
+        int j = ClientHandler.getByID(Integer.parseInt(clientMessage[0]));
+        ClientHandler clientHandler = ClientHandler.clientHandlers.get(j);
+        int id = clientHandler.getId();
+        int quantCartas = clientHandler.getPlayer().getDeck().size();
         for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
-            if (!ClientHandler.clientHandlers.get(i).equals(ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])))) {
-                int id = ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])).getPlayer().getId();
-                int quantCartas = ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])).getPlayer().getDeck().size();
+            if (!(ClientHandler.clientHandlers.get(i).equals(clientHandler))) {
                 ClientHandler.clientHandlers.get(i).toAClient("10\t" + id + "\t" + quantCartas + "\n", i);
             }
         }
@@ -328,10 +321,12 @@ public class GameListener implements Runnable {
 
     public static void enviaGritouUno(String[] clientMessage, boolean unoParaSi) {
         if (unoParaSi) {
+            int j = ClientHandler.getByID(Integer.parseInt(clientMessage[0]));
+            ClientHandler clientHandler = ClientHandler.clientHandlers.get(j);
+            int id = clientHandler.getId();
+            boolean gritouUno = clientHandler.getPlayer().isGritouUno();
             for (int i = 0; i < ClientHandler.clientHandlers.size(); i++) {
-                if (!ClientHandler.clientHandlers.get(i).equals(ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])))) {
-                    int id = ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])).getPlayer().getId();
-                    boolean gritouUno = ClientHandler.clientHandlers.get(Integer.parseInt(clientMessage[0])).getPlayer().isGritouUno();
+                if (!ClientHandler.clientHandlers.get(i).equals(clientHandler)) {
                     ClientHandler.clientHandlers.get(i).toAClient("11\t" + id + "\t" + gritouUno + "\n", i);
                 }
             }

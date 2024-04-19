@@ -16,7 +16,7 @@ public class Client {
     private BufferedWriter bufferedWriter;
     private BufferedReader bufferedReader;
     private Player player;
-    private Queue<String> mensagensRecebidas;
+    private final Queue<String> mensagensRecebidas;
 
     public Client(Socket socket) {
         mensagensRecebidas = new LinkedList<>();
@@ -64,31 +64,27 @@ public class Client {
                 bufferedWriter.close();
             if (socket != null)
                 socket.close();
+            System.out.println("\u001B[31m" + "\nPerda de conexão com o Servidor! Partida encerrada!" + "\u001B[0m");
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println("Close Exception! ");
         }
     }
 
     public void escutaMensagem() {
-        new Thread(new Runnable() {
+        new Thread(() -> {
+            String mensagem = null;
+            while (socket.isConnected()) {
+                try {
+                    mensagem = bufferedReader.readLine();
+                    mensagensRecebidas.add(mensagem);
 
-            @Override
-            public void run() {
-                String mensagem = null;
-                while (socket.isConnected()) {
-                    try {
-                        mensagem = bufferedReader.readLine();
-                        Screen.mensagensSemaphore.acquire();
-                        mensagensRecebidas.add(mensagem);
-                    } catch (IOException | InterruptedException e) {
-                        closeTudo(bufferedReader, bufferedWriter, socket);
-                    }
-                    Screen.mensagensSemaphore.release();
+                } catch (IOException e) {
+                    closeTudo(bufferedReader, bufferedWriter, socket);
+                    break;
                 }
             }
-
         }).start();
-        ;
+
     }
 
     public Player getPlayer() {

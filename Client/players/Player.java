@@ -5,7 +5,7 @@ import java.util.LinkedList;
 import baralho.Carta;
 
 public class Player {
-    private LinkedList<Carta> deck;
+    private final LinkedList<Carta> deck;
     private String nome;
     private boolean pronto;
 

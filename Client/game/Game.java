@@ -18,17 +18,14 @@ public class Game implements Runnable {
     private Carta cartaNaMesa;
     private boolean isSuaRodada;
     private final ArrayList<Oponente> opontentes;
-    private boolean novaRodada;
-    private int rodadaAtual;
     private boolean sairDoJogo;
     private boolean oponenteGritouUNo;
-    private Screen screen;
+    private final Screen screen;
+    public boolean oponenteGritouUno;
 
     public Game(Screen screen) throws IOException {
         oponenteGritouUNo = false;
         sairDoJogo = false;
-        rodadaAtual = 0;
-        novaRodada = false;
         opontentes = new ArrayList<>();
         isSuaRodada = false;
         podeComecar = false;
@@ -52,14 +49,20 @@ public class Game implements Runnable {
 
         Queue<String> mensagensRecebidas = new LinkedList<>();
 
+
         do {
+            try {
+                Thread.sleep(20);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
             try {
                 Screen.mensagensSemaphore.acquire();
             } catch (InterruptedException e) {
                 System.out.println("Semaphore Exception");
             }
             if (client.getMensagensRecebidas().peek() != null)
-                if (client.getMensagensRecebidas().peek().equals(""))
+                if (client.getMensagensRecebidas().isEmpty())
                     client.getMensagensRecebidas().poll();
 
             if (!(client.getMensagensRecebidas().isEmpty()) && client.getMensagensRecebidas().peek() != null) {
@@ -81,13 +84,7 @@ public class Game implements Runnable {
                 switch (Integer.parseInt(mensagemRecebida[0])) {
                     // Alteração no Numero de Players
                     case 1:
-                        try {
-                            Screen.numPlayersSemaphore.acquire();
-                        } catch (InterruptedException e) {
-                            System.out.println("Semaphore Exception");
-                        }
                         numPlayers = Integer.parseInt(mensagemRecebida[1]);
-                        Screen.numPlayersSemaphore.release();
                         break;
                     // Caso a partida ja esteja Lotada
                     case 2:
@@ -172,37 +169,20 @@ public class Game implements Runnable {
 
                     //Altera isSuaRodada
                     case 8:
-                        try {
-                            Screen.novaRodadaSemaphore.acquire();
-                            Screen.rodadaAtualSemaphore.acquire();
-                        } catch (InterruptedException e) {
-                            System.out.println("Semaphore Exception");
-                        }
-
                         int msg = Integer.parseInt(mensagemRecebida[1]);
 
                         isSuaRodada = msg == 1;
 
                         synchronized (screen) {
                             screen.notifyAll();
-                            try {
-                                Thread.sleep(400);
-                            } catch (InterruptedException e) {
-                                throw new RuntimeException(e);
-                            }
                         }
 
 
-                        rodadaAtual++;
-                        novaRodada = true;
-
-                        Screen.novaRodadaSemaphore.release();
-                        Screen.rodadaAtualSemaphore.release();
                         break;
                     //Pergunta Cor
                     case 10:
                         try {
-                            Screen.novaRodadaSemaphore.acquire();
+
                             Screen.geralSemaphore.acquire();
                         } catch (InterruptedException e) {
                             System.out.println("Semaphore Exception");
@@ -216,7 +196,6 @@ public class Game implements Runnable {
                             }
                         }
 
-                        Screen.novaRodadaSemaphore.release();
                         Screen.geralSemaphore.release();
                         break;
                     //Jogador gritou uno
@@ -239,6 +218,7 @@ public class Game implements Runnable {
                         break;
 
                     case 13:
+                        sairDoJogo = true;
                         try {
                             Screen.tipoDePrintSemaphore.acquire();
                         } catch (InterruptedException e) {
@@ -251,15 +231,17 @@ public class Game implements Runnable {
                             screen.notifyAll();
                         }
 
-                        for (int i = 0; i < opontentes.size(); i++) {
-                            if ((opontentes.get(i).getId() == Integer.parseInt(mensagemRecebida[1]))) {
-                                System.out.println("\u001B[32m" + "O Player " + opontentes.get(i).getNome() + " ganhou! \u001B[0m");
+                        for (Oponente opontente : opontentes) {
+                            if ((opontente.getId() == Integer.parseInt(mensagemRecebida[1]))) {
+                                System.out.println("\u001B[32m" + "\nO Player " + opontente.getNome() + " ganhou! \u001B[0m");
                                 return;
                             }
                         }
-                        System.out.println("\u001B[32m" + "O Player " + client.getPlayer().getNome() + " ganhou! \u001B[0m");
-                        return;
+                        System.out.println("\u001B[32m" + "\nO Player " + client.getPlayer().getNome() + " ganhou! \u001B[0m");
 
+                    case 14:
+                        oponenteGritouUno = Boolean.parseBoolean(mensagemRecebida[1]);
+                        break;
                 }
             }
         } while (!sairDoJogo);

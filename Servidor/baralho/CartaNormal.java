@@ -1,7 +1,7 @@
 package baralho;
 
 public class CartaNormal extends Carta {
-    private int numero;
+    private final int numero;
 
     public CartaNormal(Cor cor, int numero) {
         super(cor);
